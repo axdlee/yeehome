@@ -170,6 +170,15 @@ class YeelightService extends EventEmitter {
         id = `${host}:${port}`;
       }
       
+      // 安全地解析数值字段，处理空字符串情况
+      const parseNumber = (value, defaultValue) => {
+        if (value === undefined || value === null || value === '') {
+          return defaultValue;
+        }
+        const parsed = parseInt(value);
+        return isNaN(parsed) ? defaultValue : parsed;
+      };
+      
       // 解析设备状态信息
       // 注意：易来设备的SSDP响应中可能不包含所有状态信息
       // 需要后续通过TCP连接获取完整状态
@@ -182,16 +191,16 @@ class YeelightService extends EventEmitter {
         firmware_version: headers['fw_ver'] || '',
         support: headers['support'] ? headers['support'].split(/\s+/) : [],
         power: headers['power'] || 'off',
-        bright: parseInt(headers['bright']) || 50,
-        color_mode: parseInt(headers['color_mode']) || 2,
-        ct: parseInt(headers['ct']) || 4000,
-        rgb: parseInt(headers['rgb']) || 0,
-        hue: parseInt(headers['hue']) || 0,
-        sat: parseInt(headers['sat']) || 0,
+        bright: parseNumber(headers['bright'], 50),
+        color_mode: parseNumber(headers['color_mode'], 2),
+        ct: parseNumber(headers['ct'], 4000),
+        rgb: parseNumber(headers['rgb'], 0),
+        hue: parseNumber(headers['hue'], 0),
+        sat: parseNumber(headers['sat'], 0),
         flowing: headers['flowing'] === '1',
         flow_params: headers['flow_params'] || '',
         music_on: headers['music_on'] === '1',
-        active_mode: parseInt(headers['active_mode']) || 0,
+        active_mode: parseNumber(headers['active_mode'], 0),
         location: location,
         // 新增字段：记录设备类型
         device_type: headers['model'] ? (headers['model'].toLowerCase().includes('pro') ? 'pro' : 'standard') : 'standard'
