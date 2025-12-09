@@ -1,2 +1,6 @@
 .trae/
-*/node_modules/
+.claude/
+.codex/
+.factory/
+node_modules/
+dist/
