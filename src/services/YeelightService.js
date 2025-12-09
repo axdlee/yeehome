@@ -162,14 +162,8 @@ class YeelightService extends EventEmitter {
       const host = url.hostname;
       const port = parseInt(url.port) || 55443;
       
-      // 从SSDP响应中提取设备ID（易来设备ID格式：yeelight://<ip>:<port>/<id>）
+      // 从SSDP响应中提取设备ID（易来设备ID格式：id头中的十六进制字符串）
       let id = headers['id'];
-      if (!id && response.includes('USN:')) {
-        const usnMatch = response.match(/USN:\s*(yeelight:\/\/\d+)/i);
-        if (usnMatch) {
-          id = usnMatch[1];
-        }
-      }
       
       if (!id) {
         // 如果没有设备ID，使用host:port作为临时ID
@@ -182,25 +176,25 @@ class YeelightService extends EventEmitter {
       return {
         id: id,
         name: headers['name'] || 'Yeelight设备',
-        model: headers['model'],
+        model: headers['model'] || '',
         host: host,
         port: port,
-        firmware_version: headers['fw_ver'],
-        support: headers['support'] ? headers['support'].split(' ') : [],
-        power: headers['power'],
+        firmware_version: headers['fw_ver'] || '',
+        support: headers['support'] ? headers['support'].split(/\s+/) : [],
+        power: headers['power'] || 'off',
         bright: parseInt(headers['bright']) || 50,
         color_mode: parseInt(headers['color_mode']) || 2,
         ct: parseInt(headers['ct']) || 4000,
-        rgb: parseInt(headers['rgb']) || 16777215,
+        rgb: parseInt(headers['rgb']) || 0,
         hue: parseInt(headers['hue']) || 0,
         sat: parseInt(headers['sat']) || 0,
         flowing: headers['flowing'] === '1',
-        flow_params: headers['flow_params'],
+        flow_params: headers['flow_params'] || '',
         music_on: headers['music_on'] === '1',
         active_mode: parseInt(headers['active_mode']) || 0,
         location: location,
         // 新增字段：记录设备类型
-        device_type: headers['model'] ? headers['model'].includes('pro') ? 'pro' : 'standard' : 'standard'
+        device_type: headers['model'] ? (headers['model'].toLowerCase().includes('pro') ? 'pro' : 'standard') : 'standard'
       };
     } catch (error) {
       console.error('解析设备信息错误:', error);
@@ -296,6 +290,13 @@ class YeelightService extends EventEmitter {
         } 
         // 处理命令响应（易来文档：命令执行结果）
         else {
+          // 检查是否是错误响应
+          if (responseObj.error) {
+            console.error(`设备 ${device.id} 错误响应:`, responseObj.error);
+            this.emit('deviceError', device.id, responseObj.error);
+            return;
+          }
+          
           console.log(`设备 ${device.id} 命令响应:`, responseObj);
           
           // 如果是get_prop命令的响应，更新设备状态
@@ -305,8 +306,6 @@ class YeelightService extends EventEmitter {
           }
           // 如果是get_scene命令的响应，处理情景列表
           else if (responseObj.id && responseObj.result && Array.isArray(responseObj.result)) {
-            // 根据命令ID判断是哪个命令的响应
-            // 注意：这里需要根据实际情况调整，因为命令ID是动态生成的
             console.log(`设备 ${device.id} 情景列表:`, responseObj.result);
             // 发送情景列表事件
             this.emit('scenesReceived', device.id, responseObj.result);
@@ -671,10 +670,10 @@ class YeelightService extends EventEmitter {
     this.deviceSockets.clear();
     
     // 停止SSDP搜索
-    if (this.ssdpSocket) {
+    if (this.searchSocket) {
       try {
         console.log('关闭SSDP搜索套接字');
-        this.ssdpSocket.close();
+        this.searchSocket.close();
       } catch (error) {
         console.error('关闭SSDP搜索套接字失败:', error);
       }
