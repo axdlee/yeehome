@@ -1,9 +1,136 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const YeelightService = require('./services/YeelightService')
+const CloudDeviceManager = require('./services/CloudDeviceManager')
+const CloudRoomManager = require('./services/CloudRoomManager')
+const CloudGroupManager = require('./services/CloudGroupManager')
+const CloudSceneManager = require('./services/CloudSceneManager')
+const CloudAutomationManager = require('./services/CloudAutomationManager')
+const SyncManager = require('./services/SyncManager')
 
 // 创建Yeelight服务实例
 const yeelightService = new YeelightService()
+
+// 创建云服务实例
+const cloudDeviceManager = new CloudDeviceManager()
+const cloudRoomManager = new CloudRoomManager()
+const cloudGroupManager = new CloudGroupManager()
+const cloudSceneManager = new CloudSceneManager()
+const cloudAutomationManager = new CloudAutomationManager()
+
+// 创建同步管理器实例
+const syncManager = new SyncManager(
+  yeelightService,
+  cloudDeviceManager,
+  cloudRoomManager,
+  cloudGroupManager,
+  cloudSceneManager,
+  cloudAutomationManager
+)
+
+// 监听云设备管理器的事件
+cloudDeviceManager.on('devicesSynced', (devices) => {
+  console.log('主进程接收到云端设备同步完成事件:', devices)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-devices-synced', devices)
+  })
+})
+
+cloudDeviceManager.on('deviceUpdated', (device) => {
+  console.log('主进程接收到云端设备更新事件:', device)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-device-updated', device)
+  })
+})
+
+cloudDeviceManager.on('syncError', (error) => {
+  console.error('主进程接收到云端设备同步错误事件:', error)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-sync-error', error)
+  })
+})
+
+cloudDeviceManager.on('authError', (error) => {
+  console.error('主进程接收到云端认证错误事件:', error)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-auth-error', error)
+  })
+})
+
+// 监听云房间管理器的事件
+cloudRoomManager.on('roomsSynced', (rooms) => {
+  console.log('主进程接收到云端房间同步完成事件:', rooms)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-rooms-synced', rooms)
+  })
+})
+
+// 监听云分组管理器的事件
+cloudGroupManager.on('groupsSynced', (groups) => {
+  console.log('主进程接收到云端分组同步完成事件:', groups)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-groups-synced', groups)
+  })
+})
+
+// 监听云情景管理器的事件
+cloudSceneManager.on('scenesSynced', (scenes) => {
+  console.log('主进程接收到云端情景同步完成事件:', scenes)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-scenes-synced', scenes)
+  })
+})
+
+cloudSceneManager.on('sceneExecuted', (sceneId, result) => {
+  console.log('主进程接收到云端情景执行事件:', sceneId, result)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-scene-executed', sceneId, result)
+  })
+})
+
+// 监听云自动化管理器的事件
+cloudAutomationManager.on('automationsSynced', (automations) => {
+  console.log('主进程接收到云端自动化同步完成事件:', automations)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-automations-synced', automations)
+  })
+})
+
+// 监听认证相关事件 - 改为直接监听cloudService事件
+// 认证相关事件已通过cloudDeviceManager.oauthManager的emit触发到cloudService，再由cloudService触发到cloudDeviceManager
+// 所以我们直接监听cloudDeviceManager的事件即可
+cloudDeviceManager.on('authenticated', (tokens) => {
+  console.log('主进程接收到云端认证成功事件:', tokens)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-authenticated', tokens)
+  })
+})
+
+cloudDeviceManager.on('tokenRefreshed', (tokens) => {
+  console.log('主进程接收到云端token刷新成功事件:', tokens)
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-token-refreshed', tokens)
+  })
+})
+
+cloudDeviceManager.on('logout', () => {
+  console.log('主进程接收到云端登出事件')
+  // 发送事件到所有窗口
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('cloud-logout')
+  })
+})
 
 // 监听Yeelight服务的设备添加事件
 yeelightService.on('deviceAdded', (device) => {
@@ -190,5 +317,154 @@ ipcMain.handle('set-scene', (event, deviceId, sceneType, params) => {
 
 ipcMain.handle('set-default', (event, deviceId) => {
   return yeelightService.setDefault(deviceId)
+})
+
+// 云服务相关的IPC事件处理
+
+// 认证相关
+ipcMain.handle('cloud-get-authorization-url', (event, state) => {
+  return cloudDeviceManager.getAuthorizationUrl(state)
+})
+
+ipcMain.handle('cloud-get-access-token', (event, code) => {
+  return cloudDeviceManager.getAccessToken(code)
+})
+
+ipcMain.handle('cloud-is-authenticated', (event) => {
+  return cloudDeviceManager.isAuthenticated()
+})
+
+ipcMain.handle('cloud-get-auth-status', (event) => {
+  return cloudDeviceManager.getAuthStatus()
+})
+
+ipcMain.handle('cloud-logout', (event) => {
+  return cloudDeviceManager.logout()
+})
+
+// 设备相关
+ipcMain.handle('cloud-sync-devices', (event) => {
+  return cloudDeviceManager.syncDevices()
+})
+
+ipcMain.handle('cloud-get-devices', (event) => {
+  return cloudDeviceManager.getDevices()
+})
+
+ipcMain.handle('cloud-get-device', (event, deviceId) => {
+  return cloudDeviceManager.getDevice(deviceId)
+})
+
+ipcMain.handle('cloud-query-devices', (event, deviceIds) => {
+  return cloudDeviceManager.queryDevices(deviceIds)
+})
+
+ipcMain.handle('cloud-control-device', (event, deviceId, executions) => {
+  return cloudDeviceManager.controlDevice(deviceId, executions)
+})
+
+ipcMain.handle('cloud-toggle-power', (event, deviceId, power) => {
+  return cloudDeviceManager.togglePower(deviceId, power)
+})
+
+ipcMain.handle('cloud-set-brightness', (event, deviceId, brightness) => {
+  return cloudDeviceManager.setBrightness(deviceId, brightness)
+})
+
+ipcMain.handle('cloud-set-color-temperature', (event, deviceId, colorTemperature) => {
+  return cloudDeviceManager.setColorTemperature(deviceId, colorTemperature)
+})
+
+ipcMain.handle('cloud-set-color', (event, deviceId, rgb) => {
+  return cloudDeviceManager.setColor(deviceId, rgb)
+})
+
+// 房间相关
+ipcMain.handle('cloud-sync-rooms', (event) => {
+  return cloudRoomManager.syncRooms()
+})
+
+ipcMain.handle('cloud-get-rooms', (event) => {
+  return cloudRoomManager.getRooms()
+})
+
+ipcMain.handle('cloud-get-room', (event, roomId) => {
+  return cloudRoomManager.getRoom(roomId)
+})
+
+// 分组相关
+ipcMain.handle('cloud-sync-groups', (event) => {
+  return cloudGroupManager.syncGroups()
+})
+
+ipcMain.handle('cloud-get-groups', (event) => {
+  return cloudGroupManager.getGroups()
+})
+
+ipcMain.handle('cloud-get-group', (event, groupId) => {
+  return cloudGroupManager.getGroup(groupId)
+})
+
+ipcMain.handle('cloud-control-group', (event, groupId, executions) => {
+  return cloudGroupManager.controlGroup(groupId, executions)
+})
+
+ipcMain.handle('cloud-toggle-group-power', (event, groupId, power) => {
+  return cloudGroupManager.toggleGroupPower(groupId, power)
+})
+
+// 情景相关
+ipcMain.handle('cloud-sync-scenes', (event) => {
+  return cloudSceneManager.syncScenes()
+})
+
+ipcMain.handle('cloud-get-scenes', (event) => {
+  return cloudSceneManager.getScenes()
+})
+
+ipcMain.handle('cloud-get-scene', (event, sceneId) => {
+  return cloudSceneManager.getScene(sceneId)
+})
+
+ipcMain.handle('cloud-execute-scene', (event, sceneId) => {
+  return cloudSceneManager.executeScene(sceneId)
+})
+
+// 自动化相关
+ipcMain.handle('cloud-sync-automations', (event) => {
+  return cloudAutomationManager.syncAutomations()
+})
+
+ipcMain.handle('cloud-get-automations', (event) => {
+  return cloudAutomationManager.getAutomations()
+})
+
+ipcMain.handle('cloud-get-automation', (event, automationId) => {
+  return cloudAutomationManager.getAutomation(automationId)
+})
+
+ipcMain.handle('cloud-enable-automation', (event, automationId) => {
+  return cloudAutomationManager.enableAutomation(automationId)
+})
+
+ipcMain.handle('cloud-disable-automation', (event, automationId) => {
+  return cloudAutomationManager.disableAutomation(automationId)
+})
+
+// 同步相关
+ipcMain.handle('cloud-sync-now', (event, syncTypes) => {
+  return syncManager.syncNow(syncTypes)
+})
+
+ipcMain.handle('cloud-get-sync-status', (event) => {
+  return syncManager.getSyncStatus()
+})
+
+ipcMain.handle('cloud-set-sync-config', (event, config) => {
+  return syncManager.setSyncConfig(config)
+})
+
+ipcMain.handle('cloud-get-sync-config', (event) => {
+  return syncManager.getSyncConfig()
 })
 

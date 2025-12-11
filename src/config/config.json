@@ -1,0 +1,22 @@
+{
+  "oauth": {
+    "clientId": "",
+    "clientSecret": "",
+    "authorizationUrl": "",
+    "tokenUrl": "",
+    "redirectUri": "http://localhost:3000/callback",
+    "scope": "read write"
+  },
+  "cloudService": {
+    "apiBaseUrl": "",
+    "autoSync": true,
+    "syncInterval": 1800000
+  },
+  "localService": {
+    "discoverInterval": 60000
+  },
+  "app": {
+    "debug": false,
+    "theme": "light"
+  }
+}
