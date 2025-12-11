@@ -11,12 +11,31 @@ const SyncManager = require('./services/SyncManager')
 // 创建Yeelight服务实例
 const yeelightService = new YeelightService()
 
+// 创建ConfigManager实例用于配置管理
+const ConfigManager = require('./services/ConfigManager')
+const configManager = new ConfigManager()
+
 // 创建云服务实例
 const cloudDeviceManager = new CloudDeviceManager()
 const cloudRoomManager = new CloudRoomManager()
 const cloudGroupManager = new CloudGroupManager()
 const cloudSceneManager = new CloudSceneManager()
 const cloudAutomationManager = new CloudAutomationManager()
+
+// 初始化云服务配置
+const cloudConfig = configManager.getConfig('cloudService', {})
+const oauthConfig = configManager.getConfig('oauth', {})
+
+// 为每个云服务实例设置API基础URL和OAuth配置
+const cloudServices = [cloudDeviceManager, cloudRoomManager, cloudGroupManager, cloudSceneManager, cloudAutomationManager]
+cloudServices.forEach(service => {
+  if (service.setApiBaseUrl) {
+    service.setApiBaseUrl(cloudConfig.apiBaseUrl || '')
+  }
+  if (service.setOAuthConfig) {
+    service.setOAuthConfig(oauthConfig)
+  }
+})
 
 // 创建同步管理器实例
 const syncManager = new SyncManager(
@@ -177,6 +196,7 @@ yeelightService.on('scenesReceived', (deviceId, scenes) => {
   })
 })
 
+// 创建窗口时添加关闭事件监听
 function createWindow () {
   // 创建浏览器窗口
   const win = new BrowserWindow({
@@ -200,8 +220,23 @@ function createWindow () {
       console.error('HTML文件加载失败:', error);
     })
 
-  // 打开开发者工具
-  win.webContents.openDevTools()
+  // 仅在开发模式下打开开发者工具
+  if (process.env.NODE_ENV === 'development') {
+    win.webContents.openDevTools()
+  }
+  
+  // 监听窗口关闭事件
+  win.on('close', (event) => {
+    console.log('窗口关闭事件触发');
+    // 可以在这里添加确认关闭的逻辑
+    // 如果需要阻止关闭，可以使用 event.preventDefault()
+  })
+  
+  // 监听窗口关闭事件，确保资源被正确释放
+  win.on('closed', () => {
+    console.log('窗口已关闭');
+    // 清理窗口相关资源
+  })
 }
 
 // 当Electron完成初始化并准备创建浏览器窗口时调用
@@ -228,48 +263,66 @@ app.on('before-quit', () => {
   console.log('应用即将退出，清理资源...')
   // 关闭所有设备连接
   yeelightService.cleanup()
+  
+  // 关闭OAuth回调服务器
+  if (oauthServer) {
+    oauthServer.close(() => {
+      console.log('OAuth回调服务器已关闭')
+    })
+  }
 })
 
-// 创建窗口时添加关闭事件监听
-function createWindow () {
-  // 创建浏览器窗口
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false
+// 添加OAuth回调服务器
+let oauthServer = null
+
+// 初始化OAuth回调服务器
+function initOAuthCallbackServer() {
+  const http = require('http')
+  const url = require('url')
+  
+  // 创建HTTP服务器
+  oauthServer = http.createServer((req, res) => {
+    const parsedUrl = url.parse(req.url, true)
+    
+    // 检查是否是OAuth回调请求
+    if (parsedUrl.pathname === '/callback') {
+      const code = parsedUrl.query.code
+      const state = parsedUrl.query.state
+      
+      if (code) {
+        console.log('收到OAuth授权码:', code)
+        console.log('state:', state)
+        
+        // 发送事件到渲染进程
+        BrowserWindow.getAllWindows().forEach((window) => {
+          window.webContents.send('oauth-callback', { code, state })
+        })
+        
+        // 返回成功响应给浏览器
+        res.writeHead(200, { 'Content-Type': 'text/html' })
+        res.end('<html><body><h1>认证成功！</h1><p>您可以关闭此窗口返回应用。</p></body></html>')
+      } else {
+        // 返回错误响应
+        res.writeHead(400, { 'Content-Type': 'text/html' })
+        res.end('<html><body><h1>认证失败！</h1><p>缺少授权码。</p></body></html>')
+      }
+    } else {
+      // 返回404
+      res.writeHead(404, { 'Content-Type': 'text/html' })
+      res.end('<html><body><h1>404 Not Found</h1></body></html>')
     }
   })
-
-  // 加载index.html
-  const indexPath = path.join(__dirname, '../dist/index.html');
-  console.log('加载HTML文件:', indexPath);
-  win.loadFile(indexPath)
-    .then(() => {
-      console.log('HTML文件加载成功');
-    })
-    .catch((error) => {
-      console.error('HTML文件加载失败:', error);
-    })
-
-  // 打开开发者工具
-  win.webContents.openDevTools()
   
-  // 监听窗口关闭事件
-  win.on('close', (event) => {
-    console.log('窗口关闭事件触发');
-    // 可以在这里添加确认关闭的逻辑
-    // 如果需要阻止关闭，可以使用 event.preventDefault()
-  })
-  
-  // 监听窗口关闭事件，确保资源被正确释放
-  win.on('closed', () => {
-    console.log('窗口已关闭');
-    // 清理窗口相关资源
+  // 启动服务器，监听3000端口
+  oauthServer.listen(3000, () => {
+    console.log('OAuth回调服务器已启动，监听端口3000')
   })
 }
+
+// 在应用启动时初始化OAuth回调服务器
+app.whenReady().then(() => {
+  initOAuthCallbackServer()
+})
 
 // IPC事件处理
 ipcMain.handle('discover-devices', (event) => {

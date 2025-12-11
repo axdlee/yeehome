@@ -2,5 +2,8 @@
 .claude/
 .codex/
 .factory/
+.spec-workflow/
 node_modules/
 dist/
+src/data/
+src/config/

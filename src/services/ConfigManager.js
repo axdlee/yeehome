@@ -1,9 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+const { app } = require('electron');
 
 class ConfigManager {
   constructor() {
-    this.configPath = path.join(__dirname, '../config');
+    // 使用Electron的userData目录作为配置存储位置
+    const userDataPath = app.getPath('userData');
+    this.configPath = path.join(userDataPath, 'config');
     this.configFilePath = path.join(this.configPath, 'config.json');
     this.config = null;
     

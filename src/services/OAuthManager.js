@@ -2,12 +2,15 @@ const EventEmitter = require('events');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const { app, safeStorage } = require('electron');
 const ConfigManager = require('./ConfigManager');
 
 class OAuthManager extends EventEmitter {
   constructor() {
     super();
-    this.dataPath = path.join(__dirname, '../data');
+    // 使用Electron的userData目录作为数据存储位置
+    const userDataPath = app.getPath('userData');
+    this.dataPath = path.join(userDataPath, 'data');
     this.tokenFilePath = path.join(this.dataPath, 'oauth_tokens.json');
     
     // 创建配置管理器
@@ -39,8 +42,15 @@ class OAuthManager extends EventEmitter {
   loadTokens() {
     try {
       if (fs.existsSync(this.tokenFilePath)) {
-        const data = fs.readFileSync(this.tokenFilePath, 'utf8');
-        this.tokens = JSON.parse(data);
+        const encryptedData = fs.readFileSync(this.tokenFilePath);
+        if (safeStorage.isEncryptionAvailable()) {
+          // 使用safeStorage解密数据
+          const decryptedData = safeStorage.decryptString(encryptedData);
+          this.tokens = JSON.parse(decryptedData);
+        } else {
+          // 加密不可用，直接读取（仅开发环境）
+          this.tokens = JSON.parse(encryptedData.toString());
+        }
         console.log('已加载OAuth token数据');
         
         // 检查token是否即将过期，提前刷新
@@ -58,7 +68,19 @@ class OAuthManager extends EventEmitter {
   saveTokens() {
     try {
       if (this.tokens) {
-        fs.writeFileSync(this.tokenFilePath, JSON.stringify(this.tokens, null, 2), 'utf8');
+        const tokenData = JSON.stringify(this.tokens, null, 2);
+        let dataToWrite;
+        
+        if (safeStorage.isEncryptionAvailable()) {
+          // 使用safeStorage加密数据
+          dataToWrite = safeStorage.encryptString(tokenData);
+          // 直接写入Buffer
+          fs.writeFileSync(this.tokenFilePath, dataToWrite);
+        } else {
+          // 加密不可用，直接写入明文（仅开发环境）
+          dataToWrite = tokenData;
+          fs.writeFileSync(this.tokenFilePath, dataToWrite, 'utf8');
+        }
         console.log('OAuth token数据已保存');
       }
     } catch (error) {

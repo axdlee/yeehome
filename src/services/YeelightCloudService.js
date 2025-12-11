@@ -1,12 +1,15 @@
 const EventEmitter = require('events');
 const axios = require('axios');
 const OAuthManager = require('./OAuthManager');
+const ConfigManager = require('./ConfigManager');
 
 class YeelightCloudService extends EventEmitter {
   constructor() {
     super();
+    this.configManager = new ConfigManager();
     this.oauthManager = new OAuthManager();
-    this.apiBaseUrl = ''; // 审核通过后提供的API基础URL
+    // 从配置中获取API基础URL
+    this.apiBaseUrl = this.configManager.getConfig('cloudService.apiBaseUrl', '');
     this.httpClient = axios.create({
       timeout: 10000,
       headers: {

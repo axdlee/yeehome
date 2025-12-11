@@ -1,135 +1,75 @@
 // IPC服务，用于与主进程通信
 const { ipcRenderer } = window.electron
 
+// 事件映射，用于将主进程事件名称映射到回调方法名称
+const eventMap = {
+  // 本地设备事件
+  'device-added': 'deviceAdded',
+  'discover-done': 'discoverDone',
+  'device-updated': 'deviceUpdated',
+  'scene-applied': 'sceneApplied',
+  'scenes-received': 'scenesReceived',
+  // 云设备事件
+  'cloud-devices-synced': 'cloudDevicesSynced',
+  'cloud-device-updated': 'cloudDeviceUpdated',
+  'cloud-sync-error': 'cloudSyncError',
+  'cloud-auth-error': 'cloudAuthError',
+  // 云房间事件
+  'cloud-rooms-synced': 'cloudRoomsSynced',
+  // 云分组事件
+  'cloud-groups-synced': 'cloudGroupsSynced',
+  // 云情景事件
+  'cloud-scenes-synced': 'cloudScenesSynced',
+  'cloud-scene-executed': 'cloudSceneExecuted',
+  // 云自动化事件
+  'cloud-automations-synced': 'cloudAutomationsSynced',
+  // 云认证事件
+  'cloud-authenticated': 'cloudAuthenticated',
+  'cloud-token-refreshed': 'cloudTokenRefreshed',
+  'cloud-logout': 'cloudLogout',
+  // OAuth回调事件
+  'oauth-callback': 'oauthCallback'
+}
+
 class IPCService {
   constructor() {
     this.callbacks = {}
+    this.eventListeners = new Map() // 用于存储事件监听器，便于移除
     
-    // 本地设备相关事件
-    ipcRenderer.on('device-added', (device) => {
-      console.log('渲染进程收到设备添加事件:', device)
-      if (this.callbacks['deviceAdded']) {
-        this.callbacks['deviceAdded'](device)
+    // 注册全局事件监听器
+    this.registerGlobalEventListeners()
+  }
+  
+  // 注册全局事件监听器
+  registerGlobalEventListeners() {
+    // 遍历事件映射，注册事件监听器
+    Object.entries(eventMap).forEach(([channel, callbackName]) => {
+      // 创建事件处理函数
+      const listener = (...args) => {
+        console.log(`渲染进程收到${channel}事件:`, ...args)
+        // 调用对应的回调函数
+        if (this.callbacks[callbackName]) {
+          this.callbacks[callbackName](...args)
+        }
       }
+      
+      // 注册事件监听器
+      ipcRenderer.on(channel, listener)
+      
+      // 存储事件监听器，便于后续移除
+      this.eventListeners.set(channel, listener)
+    })
+  }
+  
+  // 移除全局事件监听器
+  removeGlobalEventListeners() {
+    // 遍历事件监听器映射，移除所有事件监听器
+    this.eventListeners.forEach((listener, channel) => {
+      ipcRenderer.removeListener(channel, listener)
     })
     
-    ipcRenderer.on('discover-done', (devices) => {
-      console.log('渲染进程收到设备发现完成事件:', devices)
-      if (this.callbacks['discoverDone']) {
-        this.callbacks['discoverDone'](devices)
-      }
-    })
-    
-    ipcRenderer.on('device-updated', (device) => {
-      console.log('渲染进程收到设备更新事件:', device)
-      if (this.callbacks['deviceUpdated']) {
-        this.callbacks['deviceUpdated'](device)
-      }
-    })
-    
-    ipcRenderer.on('scene-applied', (sceneId, actions) => {
-      console.log('渲染进程收到情景应用事件:', sceneId, actions)
-      if (this.callbacks['sceneApplied']) {
-        this.callbacks['sceneApplied'](sceneId, actions)
-      }
-    })
-    
-    ipcRenderer.on('scenes-received', (deviceId, scenes) => {
-      console.log('渲染进程收到设备情景列表:', deviceId, scenes)
-      if (this.callbacks['scenesReceived']) {
-        this.callbacks['scenesReceived'](deviceId, scenes)
-      }
-    })
-    
-    // 云设备相关事件
-    ipcRenderer.on('cloud-devices-synced', (devices) => {
-      console.log('渲染进程收到云端设备同步完成事件:', devices)
-      if (this.callbacks['cloudDevicesSynced']) {
-        this.callbacks['cloudDevicesSynced'](devices)
-      }
-    })
-    
-    ipcRenderer.on('cloud-device-updated', (device) => {
-      console.log('渲染进程收到云端设备更新事件:', device)
-      if (this.callbacks['cloudDeviceUpdated']) {
-        this.callbacks['cloudDeviceUpdated'](device)
-      }
-    })
-    
-    ipcRenderer.on('cloud-sync-error', (error) => {
-      console.error('渲染进程收到云端同步错误事件:', error)
-      if (this.callbacks['cloudSyncError']) {
-        this.callbacks['cloudSyncError'](error)
-      }
-    })
-    
-    ipcRenderer.on('cloud-auth-error', (error) => {
-      console.error('渲染进程收到云端认证错误事件:', error)
-      if (this.callbacks['cloudAuthError']) {
-        this.callbacks['cloudAuthError'](error)
-      }
-    })
-    
-    // 云房间相关事件
-    ipcRenderer.on('cloud-rooms-synced', (rooms) => {
-      console.log('渲染进程收到云端房间同步完成事件:', rooms)
-      if (this.callbacks['cloudRoomsSynced']) {
-        this.callbacks['cloudRoomsSynced'](rooms)
-      }
-    })
-    
-    // 云分组相关事件
-    ipcRenderer.on('cloud-groups-synced', (groups) => {
-      console.log('渲染进程收到云端分组同步完成事件:', groups)
-      if (this.callbacks['cloudGroupsSynced']) {
-        this.callbacks['cloudGroupsSynced'](groups)
-      }
-    })
-    
-    // 云情景相关事件
-    ipcRenderer.on('cloud-scenes-synced', (scenes) => {
-      console.log('渲染进程收到云端情景同步完成事件:', scenes)
-      if (this.callbacks['cloudScenesSynced']) {
-        this.callbacks['cloudScenesSynced'](scenes)
-      }
-    })
-    
-    ipcRenderer.on('cloud-scene-executed', (sceneId, result) => {
-      console.log('渲染进程收到云端情景执行事件:', sceneId, result)
-      if (this.callbacks['cloudSceneExecuted']) {
-        this.callbacks['cloudSceneExecuted'](sceneId, result)
-      }
-    })
-    
-    // 云自动化相关事件
-    ipcRenderer.on('cloud-automations-synced', (automations) => {
-      console.log('渲染进程收到云端自动化同步完成事件:', automations)
-      if (this.callbacks['cloudAutomationsSynced']) {
-        this.callbacks['cloudAutomationsSynced'](automations)
-      }
-    })
-    
-    // 云认证相关事件
-    ipcRenderer.on('cloud-authenticated', (tokens) => {
-      console.log('渲染进程收到云端认证成功事件:', tokens)
-      if (this.callbacks['cloudAuthenticated']) {
-        this.callbacks['cloudAuthenticated'](tokens)
-      }
-    })
-    
-    ipcRenderer.on('cloud-token-refreshed', (tokens) => {
-      console.log('渲染进程收到云端token刷新成功事件:', tokens)
-      if (this.callbacks['cloudTokenRefreshed']) {
-        this.callbacks['cloudTokenRefreshed'](tokens)
-      }
-    })
-    
-    ipcRenderer.on('cloud-logout', () => {
-      console.log('渲染进程收到云端登出事件')
-      if (this.callbacks['cloudLogout']) {
-        this.callbacks['cloudLogout']()
-      }
-    })
+    // 清空事件监听器映射
+    this.eventListeners.clear()
   }
   
   // 注册事件回调
@@ -142,6 +82,14 @@ class IPCService {
     if (this.callbacks[event]) {
       delete this.callbacks[event]
     }
+  }
+  
+  // 销毁IPCService实例，用于清理资源
+  destroy() {
+    // 移除所有事件回调
+    this.callbacks = {}
+    // 移除所有事件监听器
+    this.removeGlobalEventListeners()
   }
   
   // 发现设备

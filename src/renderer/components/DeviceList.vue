@@ -195,6 +195,26 @@ export default {
       }
     }
     
+    // 处理OAuth回调
+    const handleOAuthCallback = async (data) => {
+      console.log('收到OAuth回调:', data)
+      const { code, state } = data
+      
+      if (code) {
+        try {
+          // 使用授权码获取访问令牌
+          await ipcService.getAccessToken(code)
+          // 刷新认证状态
+          await checkAuthStatus()
+          // 刷新设备列表
+          await refreshDevices()
+        } catch (error) {
+          console.error('获取访问令牌失败:', error)
+          alert('认证失败，请重试')
+        }
+      }
+    }
+    
     // 刷新设备
     const refreshDevices = async () => {
       devices.value = []
@@ -217,10 +237,12 @@ export default {
             devices.value = cloudDevices
           } else {
             console.log('未认证，无法同步云端设备')
+            alert('请先完成云端认证')
           }
         }
       } catch (error) {
         console.error(`${deviceSource.value === 'local' ? '设备搜索' : '设备同步'}失败:`, error)
+        alert(`${deviceSource.value === 'local' ? '设备搜索' : '设备同步'}失败: ${error.message}`)
       } finally {
         isDiscovering.value = false
       }
@@ -296,35 +318,41 @@ export default {
       }
     }
 
+    // 定义定时器变量，用于组件卸载时清理
+    let authCheckInterval = null
+    
     // 组件挂载时刷新设备
     onMounted(() => {
       // 注册事件监听器
       ipcService.on('deviceAdded', handleDeviceAdded)
       ipcService.on('discoverDone', handleDiscoverDone)
       ipcService.on('deviceUpdated', handleDeviceUpdated)
+      ipcService.on('oauthCallback', handleOAuthCallback)
       
       // 开始刷新设备
       refreshDevices()
       
       // 定期检查认证状态（如果是云端设备）
       if (deviceSource.value === 'cloud') {
-        const authCheckInterval = setInterval(() => {
+        authCheckInterval = setInterval(() => {
           checkAuthStatus()
         }, 60000) // 每分钟检查一次
-        
-        // 组件卸载时清除定时器
-        onUnmounted(() => {
-          clearInterval(authCheckInterval)
-        })
       }
     })
 
-    // 组件卸载时移除事件监听器
+    // 组件卸载时移除事件监听器和清理定时器
     onUnmounted(() => {
       // 移除事件监听器
       ipcService.off('deviceAdded')
       ipcService.off('discoverDone')
       ipcService.off('deviceUpdated')
+      ipcService.off('oauthCallback')
+      
+      // 清除定时器
+      if (authCheckInterval) {
+        clearInterval(authCheckInterval)
+        authCheckInterval = null
+      }
     })
 
     return {
@@ -334,6 +362,7 @@ export default {
       isAuthenticated,
       authStatus,
       refreshDevices,
+      discoverDevices: refreshDevices, // 添加discoverDevices方法，直接调用refreshDevices
       selectDevice,
       togglePower,
       getDeviceIcon,

@@ -2,6 +2,21 @@ const dgram = require('dgram');
 const net = require('net');
 const EventEmitter = require('events');
 
+// 常量定义
+const SSDP_TTL = 1;
+const SSDP_PORT = 1982;
+const SSDP_MULTICAST_ADDRESS = '239.255.255.250';
+const SSDP_SEARCH_DELAY1 = 1000;
+const SSDP_SEARCH_DELAY2 = 2000;
+const SSDP_SEARCH_TIMEOUT = 5000;
+const DEVICE_CONNECT_DELAY = 500;
+const BRIGHTNESS_MIN = 1;
+const BRIGHTNESS_MAX = 100;
+const COLOR_TEMP_MIN = 1700;
+const COLOR_TEMP_MAX = 6500;
+const RGB_MIN = 0;
+const RGB_MAX = 16777215;
+
 class YeelightService extends EventEmitter {
   constructor() {
     super();
@@ -31,7 +46,7 @@ class YeelightService extends EventEmitter {
       console.log(`SSDP搜索socket已启动，监听地址: ${address.address}:${address.port}`);
       
       // 设置TTL，确保多播消息可以在局域网中传播
-      this.searchSocket.setTTL(1);
+      this.searchSocket.setTTL(SSDP_TTL);
       
       // 设置广播权限
       this.searchSocket.setBroadcast(true);
@@ -63,20 +78,20 @@ class YeelightService extends EventEmitter {
     // 绑定socket后发送搜索请求
     this.searchSocket.bind(() => {
       // 第一次发送
-      this.searchSocket.send(searchBuffer, 1982, '239.255.255.250');
+      this.searchSocket.send(searchBuffer, SSDP_PORT, SSDP_MULTICAST_ADDRESS);
       console.log('第一次发送SSDP搜索请求:', searchMessage);
       
       // 第二次发送（1秒后）
       setTimeout(() => {
-        this.searchSocket.send(searchBuffer, 1982, '239.255.255.250');
+        this.searchSocket.send(searchBuffer, SSDP_PORT, SSDP_MULTICAST_ADDRESS);
         console.log('第二次发送SSDP搜索请求');
-      }, 1000);
+      }, SSDP_SEARCH_DELAY1);
       
       // 第三次发送（2秒后）
       setTimeout(() => {
-        this.searchSocket.send(searchBuffer, 1982, '239.255.255.250');
+        this.searchSocket.send(searchBuffer, SSDP_PORT, SSDP_MULTICAST_ADDRESS);
         console.log('第三次发送SSDP搜索请求');
-      }, 2000);
+      }, SSDP_SEARCH_DELAY2);
     });
     
     // 5秒后停止搜索
@@ -84,7 +99,7 @@ class YeelightService extends EventEmitter {
       this.stopDiscover();
       console.log(`设备发现完成，共发现 ${this.devices.length} 个设备`);
       this.emit('discoverDone', this.devices);
-    }, 5000);
+    }, SSDP_SEARCH_TIMEOUT);
   }
 
   /**
@@ -395,37 +410,38 @@ class YeelightService extends EventEmitter {
    * @param {boolean} power - 电源状态（true: 开, false: 关）
    */
   togglePower(deviceId, power) {
-    const device = this.devices.find(d => d.id === deviceId);
-    if (!device) {
-      console.error(`设备 ${deviceId} 未找到`);
-      return false;
-    }
-    
-    const powerStr = power ? 'on' : 'off';
-    
-    // 检查设备是否连接，如果未连接则尝试重新连接
-    if (!this.deviceSockets.has(deviceId)) {
-      console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
-      this.connectDevice(device);
-      // 短暂延迟，确保连接建立
-      setTimeout(() => {
+    return new Promise((resolve) => {
+      const device = this.devices.find(d => d.id === deviceId);
+      if (!device) {
+        console.error(`设备 ${deviceId} 未找到`);
+        resolve(false);
+        return;
+      }
+      
+      const powerStr = power ? 'on' : 'off';
+      
+      // 发送命令的函数
+      const sendCommand = () => {
         const command = {
           id: Date.now(),
           method: 'set_power',
           params: [powerStr, 'smooth', 500]
         };
         this.sendCommand(deviceId, command);
-      }, 500);
-    } else {
-      // 设备已连接，直接发送命令
-      const command = {
-        id: Date.now(),
-        method: 'set_power',
-        params: [powerStr, 'smooth', 500]
+        resolve(true);
       };
-      this.sendCommand(deviceId, command);
-    }
-    return true;
+      
+      // 检查设备是否连接，如果未连接则尝试重新连接
+      if (!this.deviceSockets.has(deviceId)) {
+        console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
+        this.connectDevice(device);
+        // 短暂延迟，确保连接建立
+        setTimeout(sendCommand, DEVICE_CONNECT_DELAY);
+      } else {
+        // 设备已连接，直接发送命令
+        sendCommand();
+      }
+    });
   }
 
   /**
@@ -434,38 +450,39 @@ class YeelightService extends EventEmitter {
    * @param {number} brightness - 亮度值（1-100）
    */
   setBrightness(deviceId, brightness) {
-    const device = this.devices.find(d => d.id === deviceId);
-    if (!device) {
-      console.error(`设备 ${deviceId} 未找到`);
-      return false;
-    }
-    
-    // 确保亮度在有效范围内
-    brightness = Math.max(1, Math.min(100, brightness));
-    
-    // 检查设备是否连接，如果未连接则尝试重新连接
-    if (!this.deviceSockets.has(deviceId)) {
-      console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
-      this.connectDevice(device);
-      // 短暂延迟，确保连接建立
-      setTimeout(() => {
+    return new Promise((resolve) => {
+      const device = this.devices.find(d => d.id === deviceId);
+      if (!device) {
+        console.error(`设备 ${deviceId} 未找到`);
+        resolve(false);
+        return;
+      }
+      
+      // 确保亮度在有效范围内
+      brightness = Math.max(BRIGHTNESS_MIN, Math.min(BRIGHTNESS_MAX, brightness));
+      
+      // 发送命令的函数
+      const sendCommand = () => {
         const command = {
           id: Date.now(),
           method: 'set_bright',
           params: [brightness, 'smooth', 500]
         };
         this.sendCommand(deviceId, command);
-      }, 500);
-    } else {
-      // 设备已连接，直接发送命令
-      const command = {
-        id: Date.now(),
-        method: 'set_bright',
-        params: [brightness, 'smooth', 500]
+        resolve(true);
       };
-      this.sendCommand(deviceId, command);
-    }
-    return true;
+      
+      // 检查设备是否连接，如果未连接则尝试重新连接
+      if (!this.deviceSockets.has(deviceId)) {
+        console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
+        this.connectDevice(device);
+        // 短暂延迟，确保连接建立
+        setTimeout(sendCommand, 500);
+      } else {
+        // 设备已连接，直接发送命令
+        sendCommand();
+      }
+    });
   }
 
   /**
@@ -474,38 +491,39 @@ class YeelightService extends EventEmitter {
    * @param {number} colorTemperature - 色温值（1700-6500K）
    */
   setColorTemperature(deviceId, colorTemperature) {
-    const device = this.devices.find(d => d.id === deviceId);
-    if (!device) {
-      console.error(`设备 ${deviceId} 未找到`);
-      return false;
-    }
-    
-    // 确保色温在有效范围内
-    colorTemperature = Math.max(1700, Math.min(6500, colorTemperature));
-    
-    // 检查设备是否连接，如果未连接则尝试重新连接
-    if (!this.deviceSockets.has(deviceId)) {
-      console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
-      this.connectDevice(device);
-      // 短暂延迟，确保连接建立
-      setTimeout(() => {
+    return new Promise((resolve) => {
+      const device = this.devices.find(d => d.id === deviceId);
+      if (!device) {
+        console.error(`设备 ${deviceId} 未找到`);
+        resolve(false);
+        return;
+      }
+      
+      // 确保色温在有效范围内
+      colorTemperature = Math.max(COLOR_TEMP_MIN, Math.min(COLOR_TEMP_MAX, colorTemperature));
+      
+      // 发送命令的函数
+      const sendCommand = () => {
         const command = {
           id: Date.now(),
           method: 'set_ct_abx',
           params: [colorTemperature, 'smooth', 500]
         };
         this.sendCommand(deviceId, command);
-      }, 500);
-    } else {
-      // 设备已连接，直接发送命令
-      const command = {
-        id: Date.now(),
-        method: 'set_ct_abx',
-        params: [colorTemperature, 'smooth', 500]
+        resolve(true);
       };
-      this.sendCommand(deviceId, command);
-    }
-    return true;
+      
+      // 检查设备是否连接，如果未连接则尝试重新连接
+      if (!this.deviceSockets.has(deviceId)) {
+        console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
+        this.connectDevice(device);
+        // 短暂延迟，确保连接建立
+        setTimeout(sendCommand, 500);
+      } else {
+        // 设备已连接，直接发送命令
+        sendCommand();
+      }
+    });
   }
 
   /**
@@ -514,38 +532,39 @@ class YeelightService extends EventEmitter {
    * @param {number} rgb - RGB颜色值（0-16777215）
    */
   setColor(deviceId, rgb) {
-    const device = this.devices.find(d => d.id === deviceId);
-    if (!device) {
-      console.error(`设备 ${deviceId} 未找到`);
-      return false;
-    }
-    
-    // 确保RGB值在有效范围内
-    rgb = Math.max(0, Math.min(16777215, rgb));
-    
-    // 检查设备是否连接，如果未连接则尝试重新连接
-    if (!this.deviceSockets.has(deviceId)) {
-      console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
-      this.connectDevice(device);
-      // 短暂延迟，确保连接建立
-      setTimeout(() => {
+    return new Promise((resolve) => {
+      const device = this.devices.find(d => d.id === deviceId);
+      if (!device) {
+        console.error(`设备 ${deviceId} 未找到`);
+        resolve(false);
+        return;
+      }
+      
+      // 确保RGB值在有效范围内
+      rgb = Math.max(RGB_MIN, Math.min(RGB_MAX, rgb));
+      
+      // 发送命令的函数
+      const sendCommand = () => {
         const command = {
           id: Date.now(),
           method: 'set_rgb',
           params: [rgb, 'smooth', 500]
         };
         this.sendCommand(deviceId, command);
-      }, 500);
-    } else {
-      // 设备已连接，直接发送命令
-      const command = {
-        id: Date.now(),
-        method: 'set_rgb',
-        params: [rgb, 'smooth', 500]
+        resolve(true);
       };
-      this.sendCommand(deviceId, command);
-    }
-    return true;
+      
+      // 检查设备是否连接，如果未连接则尝试重新连接
+      if (!this.deviceSockets.has(deviceId)) {
+        console.log(`设备 ${deviceId} 未连接，尝试重新连接...`);
+        this.connectDevice(device);
+        // 短暂延迟，确保连接建立
+        setTimeout(sendCommand, 500);
+      } else {
+        // 设备已连接，直接发送命令
+        sendCommand();
+      }
+    });
   }
   
   /**

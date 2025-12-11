@@ -20,7 +20,9 @@ contextBridge.exposeInMainWorld('electron', {
         // 云自动化事件
         'cloud-automations-synced', 'cloud-automation-updated',
         // 云服务事件
-        'cloud-authenticated', 'cloud-token-refreshed', 'cloud-logout'
+        'cloud-authenticated', 'cloud-token-refreshed', 'cloud-logout',
+        // OAuth回调事件
+        'oauth-callback'
       ]
       if (validChannels.includes(channel)) {
         ipcRenderer.on(channel, (event, ...args) => func(...args))
