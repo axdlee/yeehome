@@ -4,7 +4,8 @@ const YeelightCloudService = require('./YeelightCloudService');
 class CloudGroupManager extends EventEmitter {
   constructor() {
     super();
-    this.cloudService = new YeelightCloudService();
+    // 使用单例模式获取云服务实例
+    this.cloudService = YeelightCloudService.getInstance();
     this.groups = new Map(); // 存储云端分组，key为groupId
     this.lastSyncTime = null;
   }

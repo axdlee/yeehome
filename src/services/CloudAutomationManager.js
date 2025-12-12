@@ -4,7 +4,8 @@ const YeelightCloudService = require('./YeelightCloudService');
 class CloudAutomationManager extends EventEmitter {
   constructor() {
     super();
-    this.cloudService = new YeelightCloudService();
+    // 使用单例模式获取云服务实例
+    this.cloudService = YeelightCloudService.getInstance();
     this.automations = new Map(); // 存储云端自动化，key为automationId
     this.lastSyncTime = null;
   }

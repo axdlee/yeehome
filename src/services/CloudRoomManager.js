@@ -4,7 +4,8 @@ const YeelightCloudService = require('./YeelightCloudService');
 class CloudRoomManager extends EventEmitter {
   constructor() {
     super();
-    this.cloudService = new YeelightCloudService();
+    // 使用单例模式获取云服务实例
+    this.cloudService = YeelightCloudService.getInstance();
     this.rooms = new Map(); // 存储云端房间，key为roomId
     this.lastSyncTime = null;
   }

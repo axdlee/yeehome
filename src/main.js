@@ -8,6 +8,43 @@ const CloudSceneManager = require('./services/CloudSceneManager')
 const CloudAutomationManager = require('./services/CloudAutomationManager')
 const SyncManager = require('./services/SyncManager')
 
+/**
+ * 通用的事件转发函数 - 将服务层事件转发到所有渲染进程窗口
+ * @param {EventEmitter} emitter - 事件发射器实例
+ * @param {string} eventName - 监听的事件名称
+ * @param {string} [rendererEvent] - 发送到渲染进程的事件名称(默认与eventName相同)
+ * @param {Function} [logMessage] - 日志消息生成函数
+ */
+function forwardEventToRenderer(emitter, eventName, rendererEvent, logMessage) {
+  const targetEvent = rendererEvent || eventName;
+  emitter.on(eventName, (...args) => {
+    // 记录日志
+    if (logMessage) {
+      console.log(logMessage(...args));
+    }
+    // 转发到所有窗口
+    BrowserWindow.getAllWindows().forEach((window) => {
+      window.webContents.send(targetEvent, ...args);
+    });
+  });
+}
+
+/**
+ * 通用的错误事件转发函数
+ * @param {EventEmitter} emitter - 事件发射器实例
+ * @param {string} eventName - 监听的错误事件名称
+ * @param {string} rendererEvent - 发送到渲染进程的事件名称
+ * @param {string} errorContext - 错误上下文描述
+ */
+function forwardErrorEventToRenderer(emitter, eventName, rendererEvent, errorContext) {
+  emitter.on(eventName, (error) => {
+    console.error(`主进程接收到${errorContext}:`, error);
+    BrowserWindow.getAllWindows().forEach((window) => {
+      window.webContents.send(rendererEvent, error);
+    });
+  });
+}
+
 // 创建Yeelight服务实例
 const yeelightService = new YeelightService()
 
@@ -47,154 +84,131 @@ const syncManager = new SyncManager(
   cloudAutomationManager
 )
 
-// 监听云设备管理器的事件
-cloudDeviceManager.on('devicesSynced', (devices) => {
-  console.log('主进程接收到云端设备同步完成事件:', devices)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-devices-synced', devices)
-  })
-})
+// 监听云设备管理器事件
+forwardEventToRenderer(
+  cloudDeviceManager,
+  'devicesSynced',
+  'cloud-devices-synced',
+  (devices) => `主进程接收到云端设备同步完成事件: ${devices.length}个设备`
+);
 
-cloudDeviceManager.on('deviceUpdated', (device) => {
-  console.log('主进程接收到云端设备更新事件:', device)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-device-updated', device)
-  })
-})
+forwardEventToRenderer(
+  cloudDeviceManager,
+  'deviceUpdated',
+  'cloud-device-updated',
+  (device) => `主进程接收到云端设备更新事件: ${device.id}`
+);
 
-cloudDeviceManager.on('syncError', (error) => {
-  console.error('主进程接收到云端设备同步错误事件:', error)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-sync-error', error)
-  })
-})
+forwardErrorEventToRenderer(
+  cloudDeviceManager,
+  'syncError',
+  'cloud-sync-error',
+  '云端设备同步错误事件'
+);
 
-cloudDeviceManager.on('authError', (error) => {
-  console.error('主进程接收到云端认证错误事件:', error)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-auth-error', error)
-  })
-})
+forwardErrorEventToRenderer(
+  cloudDeviceManager,
+  'authError',
+  'cloud-auth-error',
+  '云端认证错误事件'
+);
 
-// 监听云房间管理器的事件
-cloudRoomManager.on('roomsSynced', (rooms) => {
-  console.log('主进程接收到云端房间同步完成事件:', rooms)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-rooms-synced', rooms)
-  })
-})
+// 监听云房间管理器事件
+forwardEventToRenderer(
+  cloudRoomManager,
+  'roomsSynced',
+  'cloud-rooms-synced',
+  (rooms) => `主进程接收到云端房间同步完成事件: ${rooms.length}个房间`
+);
 
-// 监听云分组管理器的事件
-cloudGroupManager.on('groupsSynced', (groups) => {
-  console.log('主进程接收到云端分组同步完成事件:', groups)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-groups-synced', groups)
-  })
-})
+// 监听云分组管理器事件
+forwardEventToRenderer(
+  cloudGroupManager,
+  'groupsSynced',
+  'cloud-groups-synced',
+  (groups) => `主进程接收到云端分组同步完成事件: ${groups.length}个分组`
+);
 
-// 监听云情景管理器的事件
-cloudSceneManager.on('scenesSynced', (scenes) => {
-  console.log('主进程接收到云端情景同步完成事件:', scenes)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-scenes-synced', scenes)
-  })
-})
+// 监听云情景管理器事件
+forwardEventToRenderer(
+  cloudSceneManager,
+  'scenesSynced',
+  'cloud-scenes-synced',
+  (scenes) => `主进程接收到云端情景同步完成事件: ${scenes.length}个情景`
+);
 
-cloudSceneManager.on('sceneExecuted', (sceneId, result) => {
-  console.log('主进程接收到云端情景执行事件:', sceneId, result)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-scene-executed', sceneId, result)
-  })
-})
+forwardEventToRenderer(
+  cloudSceneManager,
+  'sceneExecuted',
+  'cloud-scene-executed',
+  (sceneId, result) => `主进程接收到云端情景执行事件: ${sceneId}, 结果: ${result}`
+);
 
-// 监听云自动化管理器的事件
-cloudAutomationManager.on('automationsSynced', (automations) => {
-  console.log('主进程接收到云端自动化同步完成事件:', automations)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-automations-synced', automations)
-  })
-})
+// 监听云自动化管理器事件
+forwardEventToRenderer(
+  cloudAutomationManager,
+  'automationsSynced',
+  'cloud-automations-synced',
+  (automations) => `主进程接收到云端自动化同步完成事件: ${automations.length}个自动化`
+);
 
-// 监听认证相关事件 - 改为直接监听cloudService事件
-// 认证相关事件已通过cloudDeviceManager.oauthManager的emit触发到cloudService，再由cloudService触发到cloudDeviceManager
-// 所以我们直接监听cloudDeviceManager的事件即可
-cloudDeviceManager.on('authenticated', (tokens) => {
-  console.log('主进程接收到云端认证成功事件:', tokens)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-authenticated', tokens)
-  })
-})
+// 监听认证相关事件
+forwardEventToRenderer(
+  cloudDeviceManager,
+  'authenticated',
+  'cloud-authenticated',
+  () => '主进程接收到云端认证成功事件'
+);
 
-cloudDeviceManager.on('tokenRefreshed', (tokens) => {
-  console.log('主进程接收到云端token刷新成功事件:', tokens)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-token-refreshed', tokens)
-  })
-})
+forwardEventToRenderer(
+  cloudDeviceManager,
+  'tokenRefreshed',
+  'cloud-token-refreshed',
+  () => '主进程接收到云端token刷新成功事件'
+);
 
-cloudDeviceManager.on('logout', () => {
-  console.log('主进程接收到云端登出事件')
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('cloud-logout')
-  })
-})
+forwardEventToRenderer(
+  cloudDeviceManager,
+  'logout',
+  'cloud-logout',
+  () => '主进程接收到云端登出事件'
+);
 
-// 监听Yeelight服务的设备添加事件
-yeelightService.on('deviceAdded', (device) => {
-  console.log('主进程接收到设备添加事件:', device)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('device-added', device)
-  })
-})
+// 监听Yeelight服务事件
+forwardEventToRenderer(
+  yeelightService,
+  'deviceAdded',
+  'device-added',
+  (device) => `主进程接收到设备添加事件: ${device.id}`
+);
 
-// 监听Yeelight服务的设备发现完成事件
-yeelightService.on('discoverDone', (devices) => {
-  console.log('主进程接收到设备发现完成事件:', devices)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('discover-done', devices)
-  })
-})
+forwardEventToRenderer(
+  yeelightService,
+  'discoverDone',
+  'discover-done',
+  (devices) => `主进程接收到设备发现完成事件: ${devices.length}个设备`
+);
 
-// 监听Yeelight服务的设备更新事件
-yeelightService.on('deviceUpdated', (device) => {
-  console.log('主进程接收到设备更新事件:', device)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('device-updated', device)
-  })
-})
+forwardEventToRenderer(
+  yeelightService,
+  'deviceUpdated',
+  'device-updated',
+  (device) => `主进程接收到设备更新事件: ${device.id}`
+);
 
-// 监听Yeelight服务的情景应用事件
-yeelightService.on('sceneApplied', (sceneId, actions) => {
-  console.log('主进程接收到情景应用事件:', sceneId, actions)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('scene-applied', sceneId, actions)
-  })
-})
+forwardEventToRenderer(
+  yeelightService,
+  'sceneApplied',
+  'scene-applied',
+  (sceneId, actions) => `主进程接收到情景应用事件: ${sceneId}`
+);
 
-// 监听Yeelight服务的情景列表接收事件
-yeelightService.on('scenesReceived', (deviceId, scenes) => {
-  console.log('主进程接收到设备情景列表:', deviceId, scenes)
-  // 发送事件到所有窗口
-  BrowserWindow.getAllWindows().forEach((window) => {
-    window.webContents.send('scenes-received', deviceId, scenes)
-  })
-})
+forwardEventToRenderer(
+  yeelightService,
+  'scenesReceived',
+  'scenes-received',
+  (deviceId, scenes) => `主进程接收到设备情景列表: ${deviceId}`
+);
 
 // 创建窗口时添加关闭事件监听
 function createWindow () {

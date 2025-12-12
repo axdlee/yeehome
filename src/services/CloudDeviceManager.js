@@ -4,7 +4,8 @@ const YeelightCloudService = require('./YeelightCloudService');
 class CloudDeviceManager extends EventEmitter {
   constructor() {
     super();
-    this.cloudService = new YeelightCloudService();
+    // 使用单例模式获取云服务实例
+    this.cloudService = YeelightCloudService.getInstance();
     this.devices = new Map(); // 存储云端设备，key为deviceId
     this.lastSyncTime = null;
     

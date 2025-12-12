@@ -4,7 +4,8 @@ const YeelightCloudService = require('./YeelightCloudService');
 class CloudSceneManager extends EventEmitter {
   constructor() {
     super();
-    this.cloudService = new YeelightCloudService();
+    // 使用单例模式获取云服务实例
+    this.cloudService = YeelightCloudService.getInstance();
     this.scenes = new Map(); // 存储云端情景，key为sceneId
     this.lastSyncTime = null;
   }

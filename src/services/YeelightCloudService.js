@@ -4,8 +4,27 @@ const OAuthManager = require('./OAuthManager');
 const ConfigManager = require('./ConfigManager');
 
 class YeelightCloudService extends EventEmitter {
+  // 单例实例
+  static instance = null;
+
+  /**
+   * 获取单例实例
+   * @returns {YeelightCloudService} 服务实例
+   */
+  static getInstance() {
+    if (!YeelightCloudService.instance) {
+      YeelightCloudService.instance = new YeelightCloudService();
+    }
+    return YeelightCloudService.instance;
+  }
+
   constructor() {
     super();
+    // 防止直接实例化，建议使用 getInstance()
+    if (YeelightCloudService.instance) {
+      console.warn('YeelightCloudService: 建议使用 getInstance() 获取单例实例');
+    }
+
     this.configManager = new ConfigManager();
     this.oauthManager = new OAuthManager();
     // 从配置中获取API基础URL
