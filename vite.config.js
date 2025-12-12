@@ -14,22 +14,15 @@ export default defineConfig({
       output: {
         // 分离第三方库以提高缓存效率
         manualChunks: {
-          'vue-vendor': ['vue'],
-          'axios-vendor': ['axios']
+          'vue-vendor': ['vue']
         },
         assetFileNames: 'assets/[name]-[hash][extname]',
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js'
       }
     },
-    // 生产环境优化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false, // 保留console.log便于调试,生产环境可设为true
-        drop_debugger: true
-      }
-    }
+    // 使用 esbuild 压缩(Vite内置,无需额外安装)
+    minify: 'esbuild'
   },
 
   resolve: {

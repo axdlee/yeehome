@@ -377,7 +377,8 @@ class YeelightService extends EventEmitter {
           case 'sat':
           case 'color_mode':
           case 'active_mode':
-            props[paramName] = parseInt(paramValue);
+            // 处理空字符串情况,返回0作为默认值
+            props[paramName] = paramValue === '' ? 0 : parseInt(paramValue) || 0;
             break;
           case 'flowing':
           case 'music_on':
