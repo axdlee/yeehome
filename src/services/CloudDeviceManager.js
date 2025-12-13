@@ -1,6 +1,8 @@
 const EventEmitter = require('events');
 const YeelightCloudService = require('./YeelightCloudService');
 const BoundedMap = require('../utils/collections/BoundedMap');
+const CacheManager = require('./cache/CacheManager');
+const LoggerFactory = require('./logging/LoggerFactory');
 
 class CloudDeviceManager extends EventEmitter {
   constructor() {
@@ -13,20 +15,30 @@ class CloudDeviceManager extends EventEmitter {
 
     this.lastSyncTime = null;
 
+    // 初始化缓存管理器
+    this.cache = new CacheManager({
+      defaultTTL: 300000,    // 5分钟默认缓存
+      maxSize: 500           // 最多500个缓存条目
+    });
+
+    // 初始化日志记录器
+    this.logger = LoggerFactory.getLogger('CloudDeviceManager');
+
     // 监听云服务事件
     this.cloudService.on('authenticated', () => {
-      console.log('CloudDeviceManager: 已认证，开始同步设备');
+      this.logger.info('已认证，开始同步设备');
       this.syncDevices();
     });
 
     this.cloudService.on('authError', (error) => {
-      console.error('CloudDeviceManager: 认证错误:', error);
+      this.logger.error('认证错误:', error);
       this.emit('authError', error);
     });
 
     this.cloudService.on('logout', () => {
-      console.log('CloudDeviceManager: 已登出，清空设备列表');
+      this.logger.info('已登出，清空设备列表和缓存');
       this.devices.clear();
+      this.cache.clear();
       this.emit('devicesCleared');
     });
   }
@@ -90,18 +102,28 @@ class CloudDeviceManager extends EventEmitter {
   
   /**
    * 同步设备列表
+   * @param {boolean} [forceRefresh=false] - 是否强制刷新（忽略缓存）
    * @returns {Promise<Array>} 同步后的设备列表
    */
-  async syncDevices() {
+  async syncDevices(forceRefresh = false) {
     if (!this.isAuthenticated()) {
       throw new Error('Not authenticated');
     }
-    
+
+    // 检查缓存（除非强制刷新）
+    if (!forceRefresh) {
+      const cached = this.cache.get('devices:all');
+      if (cached) {
+        this.logger.debug('使用缓存的设备列表');
+        return cached;
+      }
+    }
+
     try {
-      console.log('开始同步云端设备...');
+      this.logger.info('开始同步云端设备...');
       const response = await this.cloudService.discoverDevices();
       const devices = this.cloudService.parseDevicesResponse(response);
-      
+
       // 更新设备列表
       this.devices.clear();
       devices.forEach(device => {
@@ -109,15 +131,18 @@ class CloudDeviceManager extends EventEmitter {
         device.source = 'cloud';
         this.devices.set(device.id, device);
       });
-      
+
       this.lastSyncTime = Date.now();
-      
-      console.log(`云端设备同步完成，共发现 ${devices.length} 个设备`);
+
+      // 缓存设备列表（5分钟）
+      this.cache.set('devices:all', Array.from(this.devices.values()), 300000);
+
+      this.logger.info(`云端设备同步完成，共发现 ${devices.length} 个设备`);
       this.emit('devicesSynced', Array.from(this.devices.values()));
-      
+
       return Array.from(this.devices.values());
     } catch (error) {
-      console.error('同步云端设备失败:', error);
+      this.logger.error('同步云端设备失败:', error);
       this.emit('syncError', error);
       throw error;
     }
@@ -441,6 +466,31 @@ class CloudDeviceManager extends EventEmitter {
   isDeviceOnline(deviceId) {
     const device = this.getDevice(deviceId);
     return device ? device.online !== false : false;
+  }
+
+  /**
+   * 清理资源
+   */
+  cleanup() {
+    this.logger.info('清理 CloudDeviceManager 资源...');
+
+    // 销毁缓存管理器
+    if (this.cache) {
+      this.cache.destroy();
+    }
+
+    // 清空设备列表
+    this.devices.clear();
+
+    this.logger.info('CloudDeviceManager 资源已清理');
+  }
+
+  /**
+   * 获取缓存统计信息
+   * @returns {Object} 缓存统计
+   */
+  getCacheStats() {
+    return this.cache.getStats();
   }
 }
 
