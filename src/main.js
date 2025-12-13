@@ -7,9 +7,15 @@ const CloudGroupManager = require('./services/CloudGroupManager')
 const CloudSceneManager = require('./services/CloudSceneManager')
 const CloudAutomationManager = require('./services/CloudAutomationManager')
 const SyncManager = require('./services/SyncManager')
+const EventManager = require('./services/core/EventManager')
+const LogSanitizer = require('./services/security/LogSanitizer')
+
+// 创建全局 EventManager 实例
+const eventManager = new EventManager()
 
 /**
  * 通用的事件转发函数 - 将服务层事件转发到所有渲染进程窗口
+ * 使用 EventManager 自动跟踪监听器
  * @param {EventEmitter} emitter - 事件发射器实例
  * @param {string} eventName - 监听的事件名称
  * @param {string} [rendererEvent] - 发送到渲染进程的事件名称(默认与eventName相同)
@@ -17,11 +23,15 @@ const SyncManager = require('./services/SyncManager')
  */
 function forwardEventToRenderer(emitter, eventName, rendererEvent, logMessage) {
   const targetEvent = rendererEvent || eventName;
-  emitter.on(eventName, (...args) => {
-    // 记录日志
+
+  // 使用 EventManager 注册监听器
+  eventManager.on(emitter, eventName, (...args) => {
+    // 记录日志（脱敏）
     if (logMessage) {
-      console.log(logMessage(...args));
+      const message = logMessage(...args);
+      console.log(LogSanitizer.sanitize(message));
     }
+
     // 转发到所有窗口
     BrowserWindow.getAllWindows().forEach((window) => {
       window.webContents.send(targetEvent, ...args);
@@ -37,8 +47,10 @@ function forwardEventToRenderer(emitter, eventName, rendererEvent, logMessage) {
  * @param {string} errorContext - 错误上下文描述
  */
 function forwardErrorEventToRenderer(emitter, eventName, rendererEvent, errorContext) {
-  emitter.on(eventName, (error) => {
-    console.error(`主进程接收到${errorContext}:`, error);
+  eventManager.on(emitter, eventName, (error) => {
+    const sanitizedError = LogSanitizer.sanitize(error);
+    console.error(`主进程接收到${errorContext}:`, sanitizedError);
+
     BrowserWindow.getAllWindows().forEach((window) => {
       window.webContents.send(rendererEvent, error);
     });
@@ -275,15 +287,29 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   // 清理资源
   console.log('应用即将退出，清理资源...')
+
+  // 清理所有事件监听器
+  console.log('清理事件监听器...')
+  eventManager.cleanup()
+
   // 关闭所有设备连接
+  console.log('关闭设备连接...')
   yeelightService.cleanup()
-  
+
+  // 清理 OAuthManager 资源
+  if (cloudDeviceManager && cloudDeviceManager.oauthManager) {
+    console.log('清理 OAuth 资源...')
+    cloudDeviceManager.oauthManager.cleanup()
+  }
+
   // 关闭OAuth回调服务器
   if (oauthServer) {
     oauthServer.close(() => {
       console.log('OAuth回调服务器已关闭')
     })
   }
+
+  console.log('资源清理完成')
 })
 
 // 添加OAuth回调服务器
@@ -293,40 +319,44 @@ let oauthServer = null
 function initOAuthCallbackServer() {
   const http = require('http')
   const url = require('url')
-  
+
   // 创建HTTP服务器
   oauthServer = http.createServer((req, res) => {
     const parsedUrl = url.parse(req.url, true)
-    
+
     // 检查是否是OAuth回调请求
     if (parsedUrl.pathname === '/callback') {
       const code = parsedUrl.query.code
       const state = parsedUrl.query.state
-      
-      if (code) {
-        console.log('收到OAuth授权码:', code)
-        console.log('state:', state)
-        
-        // 发送事件到渲染进程
+
+      if (code && state) {
+        // 脱敏日志输出
+        console.log('收到OAuth授权码:', LogSanitizer.partialSanitize(code, 4))
+        console.log('state:', LogSanitizer.partialSanitize(state, 4))
+
+        // 发送事件到渲染进程（包含 state 用于验证）
         BrowserWindow.getAllWindows().forEach((window) => {
           window.webContents.send('oauth-callback', { code, state })
         })
-        
+
         // 返回成功响应给浏览器
-        res.writeHead(200, { 'Content-Type': 'text/html' })
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
         res.end('<html><body><h1>认证成功！</h1><p>您可以关闭此窗口返回应用。</p></body></html>')
       } else {
         // 返回错误响应
-        res.writeHead(400, { 'Content-Type': 'text/html' })
-        res.end('<html><body><h1>认证失败！</h1><p>缺少授权码。</p></body></html>')
+        const errorMessage = !code ? '缺少授权码' : '缺少 state 参数'
+        console.error('OAuth 回调错误:', errorMessage)
+
+        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' })
+        res.end(`<html><body><h1>认证失败！</h1><p>${errorMessage}</p></body></html>`)
       }
     } else {
       // 返回404
-      res.writeHead(404, { 'Content-Type': 'text/html' })
+      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end('<html><body><h1>404 Not Found</h1></body></html>')
     }
   })
-  
+
   // 启动服务器，监听3000端口
   oauthServer.listen(3000, () => {
     console.log('OAuth回调服务器已启动，监听端口3000')

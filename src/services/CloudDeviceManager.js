@@ -1,25 +1,29 @@
 const EventEmitter = require('events');
 const YeelightCloudService = require('./YeelightCloudService');
+const BoundedMap = require('../utils/collections/BoundedMap');
 
 class CloudDeviceManager extends EventEmitter {
   constructor() {
     super();
     // 使用单例模式获取云服务实例
     this.cloudService = YeelightCloudService.getInstance();
-    this.devices = new Map(); // 存储云端设备，key为deviceId
+
+    // 使用 BoundedMap 防止设备列表无限增长
+    this.devices = new BoundedMap(1000); // 最多存储1000个设备
+
     this.lastSyncTime = null;
-    
+
     // 监听云服务事件
     this.cloudService.on('authenticated', () => {
       console.log('CloudDeviceManager: 已认证，开始同步设备');
       this.syncDevices();
     });
-    
+
     this.cloudService.on('authError', (error) => {
       console.error('CloudDeviceManager: 认证错误:', error);
       this.emit('authError', error);
     });
-    
+
     this.cloudService.on('logout', () => {
       console.log('CloudDeviceManager: 已登出，清空设备列表');
       this.devices.clear();

@@ -1,247 +1,223 @@
-const EventEmitter = require('events');
-const fs = require('fs');
-const path = require('path');
+const BaseRepository = require('./core/BaseRepository');
 
-class RoomManager extends EventEmitter {
+/**
+ * 房间管理器
+ * 继承自 BaseRepository，提供房间特定的业务逻辑
+ *
+ * @class RoomManager
+ * @extends BaseRepository
+ *
+ * @fires RoomManager#roomCreated - 创建房间
+ * @fires RoomManager#roomUpdated - 更新房间
+ * @fires RoomManager#roomDeleted - 删除房间
+ * @fires RoomManager#deviceAdded - 设备添加到房间
+ * @fires RoomManager#deviceRemoved - 设备从房间移除
+ */
+class RoomManager extends BaseRepository {
   constructor() {
-    super();
-    this.rooms = [];
-    this.dataPath = path.join(__dirname, '../data');
-    this.roomsFilePath = path.join(this.dataPath, 'rooms.json');
-    
-    // 确保数据目录存在
-    this.ensureDataDirectory();
-    
-    // 加载房间数据
-    this.loadRooms();
+    super('rooms.json');
+
+    // 转发基类事件到房间特定事件
+    this.on('created', (room) => this.emit('roomCreated', room));
+    this.on('updated', (room) => this.emit('roomUpdated', room));
+    this.on('deleted', (room) => this.emit('roomDeleted', room));
   }
 
   /**
-   * 确保数据目录存在
+   * 获取默认房间数据
+   * @override
+   * @returns {Array} 默认房间列表
    */
-  ensureDataDirectory() {
-    if (!fs.existsSync(this.dataPath)) {
-      fs.mkdirSync(this.dataPath, { recursive: true });
+  getDefaultData() {
+    return [
+      { id: 1, name: '客厅', devices: [] },
+      { id: 2, name: '卧室', devices: [] },
+      { id: 3, name: '书房', devices: [] }
+    ];
+  }
+
+  /**
+   * 验证房间数据
+   * @override
+   * @param {Object} item - 房间数据
+   * @throws {Error} 验证失败时抛出错误
+   */
+  validateItem(item) {
+    if (!item.name || item.name.trim() === '') {
+      throw new Error('房间名称不能为空');
+    }
+
+    // 检查名称是否重复（排除自身）
+    const existing = this.data.find(r => r.name === item.name && r.id !== item.id);
+    if (existing) {
+      throw new Error('房间名称已存在');
+    }
+
+    // 确保 devices 字段存在且是数组
+    if (!item.devices) {
+      item.devices = [];
+    } else if (!Array.isArray(item.devices)) {
+      throw new Error('devices 字段必须是数组');
     }
   }
 
   /**
-   * 从文件加载房间数据
-   */
-  loadRooms() {
-    try {
-      if (fs.existsSync(this.roomsFilePath)) {
-        const data = fs.readFileSync(this.roomsFilePath, 'utf8');
-        this.rooms = JSON.parse(data);
-        console.log('已加载房间数据:', this.rooms);
-      } else {
-        // 初始化默认房间
-        this.rooms = [
-          { id: 1, name: '客厅', devices: [] },
-          { id: 2, name: '卧室', devices: [] },
-          { id: 3, name: '书房', devices: [] }
-        ];
-        this.saveRooms();
-        console.log('已初始化默认房间数据');
-      }
-    } catch (error) {
-      console.error('加载房间数据错误:', error);
-      this.rooms = [];
-    }
-  }
-
-  /**
-   * 保存房间数据到文件
-   */
-  saveRooms() {
-    try {
-      fs.writeFileSync(this.roomsFilePath, JSON.stringify(this.rooms, null, 2), 'utf8');
-      console.log('房间数据已保存');
-    } catch (error) {
-      console.error('保存房间数据错误:', error);
-    }
-  }
-
-  /**
-   * 获取所有房间
+   * 获取所有房间（兼容旧接口）
    * @returns {Array} 房间列表
    */
   getRooms() {
-    return this.rooms;
+    return this.findAll();
   }
 
   /**
-   * 根据ID获取房间
+   * 根据ID获取房间（兼容旧接口）
    * @param {number} id - 房间ID
    * @returns {Object|null} 房间信息
    */
   getRoom(id) {
-    return this.rooms.find(room => room.id === id) || null;
+    return this.findById(id);
   }
 
   /**
-   * 创建新房间
+   * 创建新房间（兼容旧接口）
    * @param {string} name - 房间名称
    * @returns {Object} 新创建的房间
    */
   createRoom(name) {
-    if (!name || name.trim() === '') {
-      throw new Error('房间名称不能为空');
-    }
-
-    // 检查房间名称是否已存在
-    const existingRoom = this.rooms.find(room => room.name === name);
-    if (existingRoom) {
-      throw new Error('房间名称已存在');
-    }
-
-    // 创建新房间
-    const newRoom = {
-      id: Date.now(),
-      name: name,
-      devices: []
-    };
-
-    this.rooms.push(newRoom);
-    this.saveRooms();
-    this.emit('roomCreated', newRoom);
-
-    return newRoom;
+    return this.create({ name, devices: [] });
   }
 
   /**
-   * 更新房间
+   * 更新房间（兼容旧接口）
    * @param {number} id - 房间ID
-   * @param {string} name - 新的房间名称
-   * @returns {Object|null} 更新后的房间信息
+   * @param {string} name - 新房间名称
+   * @returns {Object|null} 更新后的房间
    */
   updateRoom(id, name) {
-    if (!name || name.trim() === '') {
-      throw new Error('房间名称不能为空');
-    }
-
-    const index = this.rooms.findIndex(room => room.id === id);
-    if (index === -1) {
-      return null;
-    }
-
-    // 检查房间名称是否已存在（排除当前房间）
-    const existingRoom = this.rooms.find(room => room.name === name && room.id !== id);
-    if (existingRoom) {
-      throw new Error('房间名称已存在');
-    }
-
-    this.rooms[index].name = name;
-    this.saveRooms();
-    this.emit('roomUpdated', this.rooms[index]);
-
-    return this.rooms[index];
+    return this.update(id, { name });
   }
 
   /**
-   * 删除房间
+   * 删除房间（兼容旧接口）
    * @param {number} id - 房间ID
-   * @returns {boolean} 是否删除成功
+   * @returns {boolean} 是否成功删除
    */
   deleteRoom(id) {
-    const index = this.rooms.findIndex(room => room.id === id);
-    if (index === -1) {
-      return false;
-    }
-
-    const deletedRoom = this.rooms.splice(index, 1)[0];
-    this.saveRooms();
-    this.emit('roomDeleted', deletedRoom);
-
-    return true;
+    return this.delete(id);
   }
 
   /**
-   * 将设备添加到房间
+   * 向房间添加设备
    * @param {number} roomId - 房间ID
    * @param {string} deviceId - 设备ID
-   * @returns {boolean} 是否添加成功
+   * @returns {boolean} 是否成功添加
    */
   addDeviceToRoom(roomId, deviceId) {
-    const room = this.getRoom(roomId);
+    const room = this.findById(roomId);
     if (!room) {
+      console.error(`RoomManager: 房间 ${roomId} 不存在`);
       return false;
+    }
+
+    // 确保 devices 数组存在
+    if (!room.devices) {
+      room.devices = [];
     }
 
     // 检查设备是否已在房间中
     if (room.devices.includes(deviceId)) {
-      return true; // 设备已在房间中，视为成功
+      console.warn(`RoomManager: 设备 ${deviceId} 已在房间 ${roomId} 中`);
+      return false;
     }
 
+    // 添加设备
     room.devices.push(deviceId);
-    this.saveRooms();
-    this.emit('deviceAddedToRoom', roomId, deviceId);
+
+    // 更新房间
+    this.update(roomId, { devices: room.devices });
+
+    // 触发事件
+    this.emit('deviceAdded', roomId, deviceId);
 
     return true;
   }
 
   /**
-   * 将设备从房间中移除
+   * 从房间移除设备
    * @param {number} roomId - 房间ID
    * @param {string} deviceId - 设备ID
-   * @returns {boolean} 是否移除成功
+   * @returns {boolean} 是否成功移除
    */
   removeDeviceFromRoom(roomId, deviceId) {
-    const room = this.getRoom(roomId);
+    const room = this.findById(roomId);
     if (!room) {
+      console.error(`RoomManager: 房间 ${roomId} 不存在`);
+      return false;
+    }
+
+    if (!room.devices) {
       return false;
     }
 
     const index = room.devices.indexOf(deviceId);
     if (index === -1) {
-      return true; // 设备不在房间中，视为成功
+      console.warn(`RoomManager: 设备 ${deviceId} 不在房间 ${roomId} 中`);
+      return false;
     }
 
+    // 移除设备
     room.devices.splice(index, 1);
-    this.saveRooms();
-    this.emit('deviceRemovedFromRoom', roomId, deviceId);
+
+    // 更新房间
+    this.update(roomId, { devices: room.devices });
+
+    // 触发事件
+    this.emit('deviceRemoved', roomId, deviceId);
 
     return true;
   }
 
   /**
-   * 获取房间中的设备
+   * 获取房间中的所有设备ID
    * @param {number} roomId - 房间ID
-   * @returns {Array} 设备ID列表
+   * @returns {Array<string>} 设备ID列表
    */
   getDevicesInRoom(roomId) {
-    const room = this.getRoom(roomId);
-    return room ? room.devices : [];
+    const room = this.findById(roomId);
+    return room && room.devices ? room.devices : [];
   }
 
   /**
-   * 获取设备所在的房间
+   * 查找包含指定设备的房间
    * @param {string} deviceId - 设备ID
-   * @returns {Array} 房间列表
+   * @returns {Array<Object>} 包含该设备的房间列表
    */
-  getRoomsForDevice(deviceId) {
-    return this.rooms.filter(room => room.devices.includes(deviceId));
+  findRoomsByDevice(deviceId) {
+    return this.findBy(room => room.devices && room.devices.includes(deviceId));
   }
 
   /**
-   * 清理不存在的设备引用
-   * @param {Array} validDeviceIds - 有效的设备ID列表
+   * 批量移除设备（从所有房间）
+   * @param {string} deviceId - 设备ID
+   * @returns {number} 移除的次数
    */
-  cleanupDevices(validDeviceIds) {
-    let hasChanges = false;
-    
-    this.rooms.forEach(room => {
-      const originalLength = room.devices.length;
-      room.devices = room.devices.filter(deviceId => validDeviceIds.includes(deviceId));
-      if (room.devices.length !== originalLength) {
-        hasChanges = true;
+  removeDeviceFromAllRooms(deviceId) {
+    let count = 0;
+
+    for (const room of this.data) {
+      if (room.devices && room.devices.includes(deviceId)) {
+        const index = room.devices.indexOf(deviceId);
+        room.devices.splice(index, 1);
+        count++;
       }
-    });
-    
-    if (hasChanges) {
-      this.saveRooms();
-      this.emit('roomsCleanedUp');
     }
+
+    if (count > 0) {
+      this.save();
+      console.log(`RoomManager: 设备 ${deviceId} 已从 ${count} 个房间中移除`);
+    }
+
+    return count;
   }
 }
 
