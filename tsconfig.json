@@ -2,20 +2,21 @@
   "compilerOptions": {
     // 基础配置
     "target": "ES2020",
-    "module": "CommonJS",
-    "lib": ["ES2020"],
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
 
     // 类型检查
     "allowJs": true,
     "checkJs": false,
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strictFunctionTypes": false,
-    "strictBindCallApply": false,
-    "strictPropertyInitialization": false,
-    "noImplicitThis": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
     "alwaysStrict": true,
 
     // 模块解析
@@ -24,6 +25,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
 
     // 输出配置
     "noEmit": true,
@@ -33,19 +35,26 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@renderer/*": ["src/renderer/*"],
       "@services/*": ["src/services/*"],
-      "@renderer/*": ["src/renderer/*"]
-    }
+      "@main/*": ["src/main/*"],
+      "@shared/*": ["src/shared/*"]
+    },
+
+    // Vue 相关
+    "types": ["node"]
   },
   "include": [
     "src/**/*.js",
     "src/**/*.vue",
     "src/**/*.ts",
-    "src/**/*.tsx"
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    "build",
     "**/*.spec.js",
     "**/*.test.js"
   ]
