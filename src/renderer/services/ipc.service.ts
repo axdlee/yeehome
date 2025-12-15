@@ -295,6 +295,16 @@ class IPCService {
   async cloudGetSyncStatus(): Promise<{ lastSync?: Date; syncing: boolean }> {
     return this.ipcRenderer.invoke('cloud-get-sync-status')
   }
+
+  // ==================== 系统方法 ====================
+
+  async openExternal(url: string): Promise<void> {
+    return this.ipcRenderer.invoke('open-external', url)
+  }
+
+  async getAppVersion(): Promise<string> {
+    return this.ipcRenderer.invoke('get-app-version')
+  }
 }
 
 // 单例导出
