@@ -1,65 +1,40 @@
 <template>
-  <div class="automations-view">
+  <div class="page-view">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">自动化管理</h1>
-        <div class="automation-stats">
-          <el-tag type="info" effect="plain">
-            共 {{ automationStore.automationCount }} 个
-          </el-tag>
-          <el-tag type="success" effect="plain">
-            启用 {{ automationStore.enabledAutomations.length }} 个
-          </el-tag>
-        </div>
-      </div>
-      <div class="header-right">
-        <el-button
-          type="primary"
-          :icon="Refresh"
-          :loading="automationStore.isLoading"
-          @click="handleRefresh"
-        >
-          同步自动化
-        </el-button>
-      </div>
-    </div>
+    <PageHeader
+      title="自动化管理"
+      :count="automationStore.automationCount"
+      count-label="个"
+      button-text="同步自动化"
+      :loading="automationStore.isLoading"
+      @refresh="handleRefresh"
+    >
+      <template #extra-stats>
+        <el-tag type="success" effect="plain">
+          启用 {{ automationStore.enabledAutomations.length }} 个
+        </el-tag>
+      </template>
+    </PageHeader>
 
     <!-- 登录提示 -->
-    <el-alert
+    <AuthAlert
       v-if="!authStore.isAuthenticated"
-      title="请先登录云端账号"
-      type="warning"
-      show-icon
-      :closable="false"
-      class="auth-alert"
-    >
-      <template #default>
-        <span>自动化管理需要登录 Yeelight 账号才能访问。</span>
-        <el-button type="primary" link @click="navigateToSettings">
-          前往设置登录
-        </el-button>
-      </template>
-    </el-alert>
+      feature-name="自动化管理"
+      @navigate="navigateToSettings"
+    />
 
     <!-- 自动化列表 -->
-    <div class="automations-content" v-loading="automationStore.isLoading">
-      <!-- 空状态 -->
-      <el-empty
+    <div class="page-content" v-loading="automationStore.isLoading">
+      <EmptyState
         v-if="automationStore.automations.length === 0 && !automationStore.isLoading"
         :description="emptyText"
-      >
-        <el-button
-          v-if="authStore.isAuthenticated"
-          type="primary"
-          @click="handleRefresh"
-        >
-          刷新自动化
-        </el-button>
-      </el-empty>
+        button-text="刷新自动化"
+        :show-button="authStore.isAuthenticated"
+        @action="handleRefresh"
+      />
 
       <!-- 自动化列表 -->
-      <div class="automations-list" v-else>
+      <div class="automation-list" v-else>
         <el-card
           v-for="automation in automationStore.automations"
           :key="automation.id"
@@ -70,18 +45,12 @@
           <div class="automation-content">
             <div class="automation-left">
               <div class="automation-icon" :class="{ 'is-active': automation.enabled }">
-                <el-icon :size="24">
-                  <Timer />
-                </el-icon>
+                <el-icon :size="24"><Timer /></el-icon>
               </div>
               <div class="automation-info">
                 <h3 class="automation-name">{{ automation.name }}</h3>
                 <div class="automation-meta">
-                  <el-tag
-                    :type="getTriggerTagType(automation.triggerType)"
-                    size="small"
-                    effect="plain"
-                  >
+                  <el-tag :type="getTriggerTagType(automation.triggerType)" size="small" effect="plain">
                     {{ getTriggerLabel(automation.triggerType) }}
                   </el-tag>
                   <span class="condition-text" v-if="automation.triggerCondition">
@@ -102,7 +71,7 @@
 
           <div class="automation-actions" v-if="automation.actions?.length">
             <span class="actions-label">执行动作:</span>
-            <div class="actions-list">
+            <div class="tag-list">
               <el-tag
                 v-for="(action, index) in automation.actions.slice(0, 3)"
                 :key="index"
@@ -111,11 +80,7 @@
               >
                 {{ getActionLabel(action) }}
               </el-tag>
-              <el-tag
-                v-if="automation.actions.length > 3"
-                size="small"
-                type="info"
-              >
+              <el-tag v-if="automation.actions.length > 3" size="small" type="info">
                 +{{ automation.actions.length - 3 }}
               </el-tag>
             </div>
@@ -129,25 +94,23 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Refresh, Timer } from '@element-plus/icons-vue'
+import { Timer } from '@element-plus/icons-vue'
 import { useAutomationStore } from '@/renderer/stores/automation'
 import { useAuthStore } from '@/renderer/stores/auth'
 import type { AutomationTriggerType, AutomationAction } from '@/renderer/types/automation'
 import { ElMessage } from 'element-plus'
+import PageHeader from '@/renderer/components/common/PageHeader.vue'
+import AuthAlert from '@/renderer/components/common/AuthAlert.vue'
+import EmptyState from '@/renderer/components/common/EmptyState.vue'
 
 const router = useRouter()
 const automationStore = useAutomationStore()
 const authStore = useAuthStore()
 
-// 计算属性
-const emptyText = computed(() => {
-  if (!authStore.isAuthenticated) {
-    return '请先登录云端账号'
-  }
-  return '暂无自动化规则'
-})
+const emptyText = computed(() =>
+  authStore.isAuthenticated ? '暂无自动化规则' : '请先登录云端账号'
+)
 
-// 方法
 const handleRefresh = () => {
   if (!authStore.isAuthenticated) {
     ElMessage.warning('请先登录云端账号')
@@ -156,9 +119,7 @@ const handleRefresh = () => {
   automationStore.syncAutomations()
 }
 
-const navigateToSettings = () => {
-  router.push('/settings')
-}
+const navigateToSettings = () => router.push('/settings')
 
 const handleToggle = async (automationId: string) => {
   await automationStore.toggleAutomation(automationId)
@@ -187,22 +148,13 @@ const getTriggerLabel = (type: AutomationTriggerType): string => {
 }
 
 const getActionLabel = (action: AutomationAction): string => {
-  if (action.type === 'power') {
-    return action.value ? '开启设备' : '关闭设备'
-  }
-  if (action.type === 'brightness') {
-    return `亮度 ${action.value}%`
-  }
-  if (action.type === 'color_temp') {
-    return `色温 ${action.value}K`
-  }
-  if (action.type === 'scene') {
-    return '执行情景'
-  }
+  if (action.type === 'power') return action.value ? '开启设备' : '关闭设备'
+  if (action.type === 'brightness') return `亮度 ${action.value}%`
+  if (action.type === 'color_temp') return `色温 ${action.value}K`
+  if (action.type === 'scene') return '执行情景'
   return action.type
 }
 
-// 生命周期
 onMounted(() => {
   automationStore.setupEventListeners()
   if (authStore.isAuthenticated && automationStore.automations.length === 0) {
@@ -216,57 +168,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-.automations-view {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: var(--spacing-lg);
-  gap: var(--spacing-lg);
-}
+@use '@/renderer/styles/common-views.scss';
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-md);
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.page-title {
-  margin: 0;
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.automation-stats {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-.auth-alert {
-  flex-shrink: 0;
-
-  :deep(.el-alert__content) {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-  }
-}
-
-.automations-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.automations-list {
+.automation-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
@@ -353,11 +257,5 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   white-space: nowrap;
-}
-
-.actions-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
 }
 </style>
