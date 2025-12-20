@@ -176,7 +176,89 @@
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.8);
   --shadow-glow: 0 0 24px rgba(59, 130, 246, 0.25);
   --shadow-glow-lg: 0 0 48px rgba(59, 130, 246, 0.35);
+
+  // ========== Element Plus 暗色主题变量 ==========
+  // 基础颜色
+  --el-color-primary: #3b82f6;
+  --el-color-primary-light-3: #60a5fa;
+  --el-color-primary-light-5: #93c5fd;
+  --el-color-primary-light-7: #bfdbfe;
+  --el-color-primary-light-9: #eff6ff;
+  --el-color-primary-dark-2: #2563eb;
+  
+  // 背景色
+  --el-bg-color: #0f172a;
+  --el-bg-color-page: #0f172a;
+  --el-bg-color-overlay: #1e293b;
+  --el-bg-color-dialog: #1e293b;
+  --el-bg-color-card: #1e293b;
+  --el-bg-color-tabs: #1e293b;
+  
+  // 文字颜色
+  --el-text-color-primary: #f1f5f9;
+  --el-text-color-regular: #cbd5e1;
+  --el-text-color-secondary: #64748b;
+  --el-text-color-placeholder: #475569;
+  --el-text-color-disabled: #475569;
+  
+  // 边框颜色
+  --el-border-color: #334155;
+  --el-border-color-light: #1e293b;
+  --el-border-color-lighter: #334155;
+  --el-border-color-extra-light: #1e293b;
+  
+  // 表单相关
+  --el-fill-color-blank: #1e293b;
+  --el-fill-color-light: #1e293b;
+  --el-fill-color-regular: #1e293b;
+  --el-fill-color-dark: #0f172a;
+  
+  // 输入框
+  --el-input-bg-color: #1e293b;
+  --el-input-border-color: #334155;
+  --el-input-text-color: #f1f5f9;
+  --el-input-placeholder-color: #475569;
+  
+  // 选择器
+  --el-select-dropdown-bg-color: #1e293b;
+  --el-select-dropdown-border-color: #334155;
+  
+  // 按钮
+  --el-button-bg-color: #1e293b;
+  --el-button-border-color: #334155;
+  --el-button-text-color: #f1f5f9;
+  
+  // 滑块
+  --el-slider-runway-background-color: #334155;
+  --el-slider-button-background-color: #3b82f6;
+  
+  // 日期选择器
+  --el-date-picker-cell-hover-bg: #334155;
+  --el-date-picker-cell-range-hover-bg: #334155;
+  --el-date-picker-cell-range-bg: #3b82f6;
+  
+  // 菜单
+  --el-menu-bg-color: #0f172a;
+  --el-menu-text-color: #cbd5e1;
+  --el-menu-active-color: #f1f5f9;
+  --el-menu-hover-bg-color: #334155;
+  
+  // 表格
+  --el-table-bg-color: #1e293b;
+  --el-table-header-bg-color: #334155;
+  --el-table-border-color: #334155;
+  --el-table-header-text-color: #f1f5f9;
+  --el-table-row-hover-bg-color: #334155;
+  
+  // 弹窗
+  --el-overlay-color: rgba(0, 0, 0, 0.8);
+  
+  // 标签页
+  --el-tabs-nav-wrap-background-color: #1e293b;
+  --el-tabs-active-bar-color: #3b82f6;
+  --el-tabs-border-bottom-color: #334155;
 }
+
 
 // ========== 亮色主题侧边栏颜色 ==========
 [data-theme="light"] {
