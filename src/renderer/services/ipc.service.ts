@@ -136,6 +136,23 @@ class IPCService {
    * 处理响应格式并在错误时抛出 IPCError
    */
   private async request<T>(channel: string, ...args: any[]): Promise<T> {
+    if (!this.ipcRenderer) {
+      console.warn(`[IPC] ipcRenderer 未定义，无法调用 ${channel}。当前可能在浏览器环境中运行。`)
+      // 根据不同的通道返回合适的默认值
+      if (channel.includes('get-devices') || 
+          channel.includes('sync-devices') || 
+          channel.includes('get-rooms') || 
+          channel.includes('get-groups') || 
+          channel.includes('get-scenes') || 
+          channel.includes('get-automations') ||
+          channel.includes('timer-get-all')) {
+        // 返回空数组
+        return [] as T
+      }
+      // 返回空对象
+      return {} as T
+    }
+    
     const response: IPCResponse<T> = await this.ipcRenderer.invoke(channel, ...args)
 
     if (!response.success) {
@@ -147,6 +164,10 @@ class IPCService {
 
   // 注册全局事件监听器
   private registerGlobalEventListeners(): void {
+    if (!this.ipcRenderer) {
+      console.warn(`[IPC] ipcRenderer 未定义，无法注册全局事件监听器。`)
+      return
+    }
     Object.entries(eventMap).forEach(([channel, callbackName]) => {
       const listener = (...args: any[]): void => {
         console.log(`[IPC] 收到事件: ${channel}`, ...args)
@@ -163,6 +184,10 @@ class IPCService {
 
   // 移除全局事件监听器
   private removeGlobalEventListeners(): void {
+    if (!this.ipcRenderer) {
+      console.warn(`[IPC] ipcRenderer 未定义，无法移除全局事件监听器。`)
+      return
+    }
     this.eventListeners.forEach((listener, channel) => {
       this.ipcRenderer.removeListener(channel, listener)
     })
@@ -192,7 +217,8 @@ class IPCService {
   }
 
   async getDevices(): Promise<Device[]> {
-    return this.request<Device[]>('get-devices')
+    const result = await this.request<Device[]>('get-devices')
+    return Array.isArray(result) ? result : []
   }
 
   async togglePower(deviceId: string, power: boolean): Promise<boolean> {

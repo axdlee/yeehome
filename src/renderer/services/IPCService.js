@@ -1,5 +1,5 @@
 // IPC服务，用于与主进程通信
-const { ipcRenderer } = window.electron
+const ipcRenderer = window.electron?.ipcRenderer
 
 // 事件映射，用于将主进程事件名称映射到回调方法名称
 const eventMap = {
@@ -37,11 +37,26 @@ class IPCService {
     this.eventListeners = new Map() // 用于存储事件监听器，便于移除
     
     // 注册全局事件监听器
-    this.registerGlobalEventListeners()
+    if (ipcRenderer) {
+      this.registerGlobalEventListeners()
+    }
+  }
+  
+  // 统一的IPC请求方法
+  async request(channel, ...args) {
+    if (!ipcRenderer) {
+      console.warn(`[IPC] ipcRenderer 未定义，无法调用 ${channel}。当前可能在浏览器环境中运行。`)
+      return Promise.resolve({})
+    }
+    return ipcRenderer.invoke(channel, ...args)
   }
   
   // 注册全局事件监听器
   registerGlobalEventListeners() {
+    if (!ipcRenderer) {
+      console.warn(`[IPC] ipcRenderer 未定义，无法注册全局事件监听器。`)
+      return
+    }
     // 遍历事件映射，注册事件监听器
     Object.entries(eventMap).forEach(([channel, callbackName]) => {
       // 创建事件处理函数
@@ -63,6 +78,10 @@ class IPCService {
   
   // 移除全局事件监听器
   removeGlobalEventListeners() {
+    if (!ipcRenderer) {
+      console.warn(`[IPC] ipcRenderer 未定义，无法移除全局事件监听器。`)
+      return
+    }
     // 遍历事件监听器映射，移除所有事件监听器
     this.eventListeners.forEach((listener, channel) => {
       ipcRenderer.removeListener(channel, listener)
@@ -94,206 +113,206 @@ class IPCService {
   
   // 发现设备
   async discoverDevices() {
-    return await ipcRenderer.invoke('discover-devices')
+    return await this.request('discover-devices')
   }
   
   // 获取所有设备
   async getDevices() {
-    return await ipcRenderer.invoke('get-devices')
+    return await this.request('get-devices')
   }
   
   // 控制设备电源
   async togglePower(deviceId, power) {
-    return await ipcRenderer.invoke('toggle-power', deviceId, power)
+    return await this.request('toggle-power', deviceId, power)
   }
   
   // 设置亮度
   async setBrightness(deviceId, brightness) {
-    return await ipcRenderer.invoke('set-brightness', deviceId, brightness)
+    return await this.request('set-brightness', deviceId, brightness)
   }
   
   // 设置色温
   async setColorTemperature(deviceId, colorTemperature) {
-    return await ipcRenderer.invoke('set-color-temperature', deviceId, colorTemperature)
+    return await this.request('set-color-temperature', deviceId, colorTemperature)
   }
   
   // 设置颜色
   async setColor(deviceId, rgb) {
-    return await ipcRenderer.invoke('set-color', deviceId, rgb)
+    return await this.request('set-color', deviceId, rgb)
   }
   
   // 从设备读取情景列表
   async getScenesFromDevice(deviceId) {
-    return await ipcRenderer.invoke('get-scenes-from-device', deviceId)
+    return await this.request('get-scenes-from-device', deviceId)
   }
   
   // 从设备读取灯组列表
   async getGroupsFromDevice(deviceId) {
-    return await ipcRenderer.invoke('get-groups-from-device', deviceId)
+    return await this.request('get-groups-from-device', deviceId)
   }
   
   // 切换设备电源状态
   async toggleDevice(deviceId) {
-    return await ipcRenderer.invoke('toggle-device', deviceId)
+    return await this.request('toggle-device', deviceId)
   }
   
   // 设置设备情景
   async setScene(deviceId, sceneType, params) {
-    return await ipcRenderer.invoke('set-scene', deviceId, sceneType, params)
+    return await this.request('set-scene', deviceId, sceneType, params)
   }
   
   // 设置设备默认状态
   async setDefault(deviceId) {
-    return await ipcRenderer.invoke('set-default', deviceId)
+    return await this.request('set-default', deviceId)
   }
   
   // 云服务相关方法
   
   // 认证相关
   async getAuthorizationUrl(state) {
-    return await ipcRenderer.invoke('cloud-get-authorization-url', state)
+    return await this.request('cloud-get-authorization-url', state)
   }
   
   async getAccessToken(code) {
-    return await ipcRenderer.invoke('cloud-get-access-token', code)
+    return await this.request('cloud-get-access-token', code)
   }
   
   async isAuthenticated() {
-    return await ipcRenderer.invoke('cloud-is-authenticated')
+    return await this.request('cloud-is-authenticated')
   }
   
   async getAuthStatus() {
-    return await ipcRenderer.invoke('cloud-get-auth-status')
+    return await this.request('cloud-get-auth-status')
   }
   
   async logout() {
-    return await ipcRenderer.invoke('cloud-logout')
+    return await this.request('cloud-logout')
   }
   
   // 设备相关
   async cloudSyncDevices() {
-    return await ipcRenderer.invoke('cloud-sync-devices')
+    return await this.request('cloud-sync-devices')
   }
   
   async cloudGetDevices() {
-    return await ipcRenderer.invoke('cloud-get-devices')
+    return await this.request('cloud-get-devices')
   }
   
   async cloudGetDevice(deviceId) {
-    return await ipcRenderer.invoke('cloud-get-device', deviceId)
+    return await this.request('cloud-get-device', deviceId)
   }
   
   async cloudQueryDevices(deviceIds) {
-    return await ipcRenderer.invoke('cloud-query-devices', deviceIds)
+    return await this.request('cloud-query-devices', deviceIds)
   }
   
   async cloudControlDevice(deviceId, executions) {
-    return await ipcRenderer.invoke('cloud-control-device', deviceId, executions)
+    return await this.request('cloud-control-device', deviceId, executions)
   }
   
   async cloudTogglePower(deviceId, power) {
-    return await ipcRenderer.invoke('cloud-toggle-power', deviceId, power)
+    return await this.request('cloud-toggle-power', deviceId, power)
   }
   
   async cloudSetBrightness(deviceId, brightness) {
-    return await ipcRenderer.invoke('cloud-set-brightness', deviceId, brightness)
+    return await this.request('cloud-set-brightness', deviceId, brightness)
   }
   
   async cloudSetColorTemperature(deviceId, colorTemperature) {
-    return await ipcRenderer.invoke('cloud-set-color-temperature', deviceId, colorTemperature)
+    return await this.request('cloud-set-color-temperature', deviceId, colorTemperature)
   }
   
   async cloudSetColor(deviceId, rgb) {
-    return await ipcRenderer.invoke('cloud-set-color', deviceId, rgb)
+    return await this.request('cloud-set-color', deviceId, rgb)
   }
   
   // 房间相关
   async cloudSyncRooms() {
-    return await ipcRenderer.invoke('cloud-sync-rooms')
+    return await this.request('cloud-sync-rooms')
   }
   
   async cloudGetRooms() {
-    return await ipcRenderer.invoke('cloud-get-rooms')
+    return await this.request('cloud-get-rooms')
   }
   
   async cloudGetRoom(roomId) {
-    return await ipcRenderer.invoke('cloud-get-room', roomId)
+    return await this.request('cloud-get-room', roomId)
   }
   
   // 分组相关
   async cloudSyncGroups() {
-    return await ipcRenderer.invoke('cloud-sync-groups')
+    return await this.request('cloud-sync-groups')
   }
   
   async cloudGetGroups() {
-    return await ipcRenderer.invoke('cloud-get-groups')
+    return await this.request('cloud-get-groups')
   }
   
   async cloudGetGroup(groupId) {
-    return await ipcRenderer.invoke('cloud-get-group', groupId)
+    return await this.request('cloud-get-group', groupId)
   }
   
   async cloudControlGroup(groupId, executions) {
-    return await ipcRenderer.invoke('cloud-control-group', groupId, executions)
+    return await this.request('cloud-control-group', groupId, executions)
   }
   
   async cloudToggleGroupPower(groupId, power) {
-    return await ipcRenderer.invoke('cloud-toggle-group-power', groupId, power)
+    return await this.request('cloud-toggle-group-power', groupId, power)
   }
   
   // 情景相关
   async cloudSyncScenes() {
-    return await ipcRenderer.invoke('cloud-sync-scenes')
+    return await this.request('cloud-sync-scenes')
   }
   
   async cloudGetScenes() {
-    return await ipcRenderer.invoke('cloud-get-scenes')
+    return await this.request('cloud-get-scenes')
   }
   
   async cloudGetScene(sceneId) {
-    return await ipcRenderer.invoke('cloud-get-scene', sceneId)
+    return await this.request('cloud-get-scene', sceneId)
   }
   
   async cloudExecuteScene(sceneId) {
-    return await ipcRenderer.invoke('cloud-execute-scene', sceneId)
+    return await this.request('cloud-execute-scene', sceneId)
   }
   
   // 自动化相关
   async cloudSyncAutomations() {
-    return await ipcRenderer.invoke('cloud-sync-automations')
+    return await this.request('cloud-sync-automations')
   }
   
   async cloudGetAutomations() {
-    return await ipcRenderer.invoke('cloud-get-automations')
+    return await this.request('cloud-get-automations')
   }
   
   async cloudGetAutomation(automationId) {
-    return await ipcRenderer.invoke('cloud-get-automation', automationId)
+    return await this.request('cloud-get-automation', automationId)
   }
   
   async cloudEnableAutomation(automationId) {
-    return await ipcRenderer.invoke('cloud-enable-automation', automationId)
+    return await this.request('cloud-enable-automation', automationId)
   }
   
   async cloudDisableAutomation(automationId) {
-    return await ipcRenderer.invoke('cloud-disable-automation', automationId)
+    return await this.request('cloud-disable-automation', automationId)
   }
   
   // 同步相关
   async cloudSyncNow(syncTypes) {
-    return await ipcRenderer.invoke('cloud-sync-now', syncTypes)
+    return await this.request('cloud-sync-now', syncTypes)
   }
   
   async cloudGetSyncStatus() {
-    return await ipcRenderer.invoke('cloud-get-sync-status')
+    return await this.request('cloud-get-sync-status')
   }
   
   async cloudSetSyncConfig(config) {
-    return await ipcRenderer.invoke('cloud-set-sync-config', config)
+    return await this.request('cloud-set-sync-config', config)
   }
   
   async cloudGetSyncConfig() {
-    return await ipcRenderer.invoke('cloud-get-sync-config')
+    return await this.request('cloud-get-sync-config')
   }
 }
 
