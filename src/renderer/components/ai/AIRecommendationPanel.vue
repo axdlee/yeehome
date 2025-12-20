@@ -166,7 +166,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md) var(--spacing-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--sidebar-border-color);
   background: linear-gradient(135deg, rgba(103, 58, 183, 0.1) 0%, rgba(156, 39, 176, 0.05) 100%);
 }
 
@@ -236,7 +236,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   padding: var(--spacing-md);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--sidebar-border-color);
 }
 
 // 列表过渡动画

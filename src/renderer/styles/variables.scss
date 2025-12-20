@@ -128,6 +128,12 @@
   --device-brightness: #f59e0b;
   --device-ct: #3b82f6;
   --device-color: #ec4899;
+
+  // ========== 侧边栏专用颜色（默认暗色） ==========
+  --sidebar-border-color: rgba(255, 255, 255, 0.05);
+  --sidebar-bg-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-text-color: rgba(255, 255, 255, 0.6);
+  --sidebar-text-hover: #ffffff;
 }
 
 // ========== 暗色主题 ==========
@@ -150,6 +156,12 @@
   --color-bg-sidebar: #020617;
   --color-bg-overlay: rgba(0, 0, 0, 0.8);
 
+  // 侧边栏专用颜色
+  --sidebar-border-color: rgba(255, 255, 255, 0.05);
+  --sidebar-bg-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-text-color: rgba(255, 255, 255, 0.6);
+  --sidebar-text-hover: #ffffff;
+
   // 毛玻璃效果
   --glass-bg: rgba(30, 41, 59, 0.7);
   --glass-bg-dark: rgba(2, 6, 23, 0.85);
@@ -164,4 +176,12 @@
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.8);
   --shadow-glow: 0 0 24px rgba(59, 130, 246, 0.25);
   --shadow-glow-lg: 0 0 48px rgba(59, 130, 246, 0.35);
+}
+
+// ========== 亮色主题侧边栏颜色 ==========
+[data-theme="light"] {
+  --sidebar-border-color: rgba(0, 0, 0, 0.06);
+  --sidebar-bg-hover: rgba(0, 0, 0, 0.03);
+  --sidebar-text-color: rgba(0, 0, 0, 0.6);
+  --sidebar-text-hover: rgba(0, 0, 0, 0.85);
 }

@@ -302,9 +302,29 @@ class YeelightService extends EventEmitter {
       return;
     }
 
+    // 检查 socket 是否可写，避免 EPIPE 错误
+    if (socket.destroyed || socket.writeableEnded) {
+      console.warn(`YeelightService: 设备 ${deviceId} 连接已关闭，尝试重新连接...`);
+      const device = this.devices.find(d => d.id === deviceId);
+      if (device) {
+        this.connectDevice(device);
+      }
+      return;
+    }
+
     const commandString = JSON.stringify(command) + '\r\n';
     console.log(`YeelightService: 向设备 ${deviceId} 发送命令:`, commandString);
-    socket.write(commandString);
+
+    try {
+      socket.write(commandString);
+    } catch (error) {
+      console.error(`YeelightService: 向设备 ${deviceId} 写入命令失败:`, error.message);
+      // 尝试重新连接
+      const device = this.devices.find(d => d.id === deviceId);
+      if (device) {
+        this.connectDevice(device);
+      }
+    }
   }
 
   /**

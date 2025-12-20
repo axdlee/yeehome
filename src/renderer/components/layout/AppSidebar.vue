@@ -44,7 +44,7 @@
         :index="route.path"
       >
         <el-icon class="menu-icon">
-          <component :is="route.meta.icon" />
+          <component :is="getIconComponent(route.meta.icon)" />
         </el-icon>
         <template #title>
           {{ route.meta.title }}
@@ -96,9 +96,29 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Fold, Expand, Sunny, Moon } from '@element-plus/icons-vue'
+import {
+  Fold, Expand, Sunny, Moon,
+  Cpu, House, MagicStick, Collection, Setting, Clock, Tools
+} from '@element-plus/icons-vue'
 import { useUIStore } from '@/renderer/stores/ui'
 import router from '@/renderer/router'
+
+// 图标名称到组件的映射
+const iconMap: Record<string, any> = {
+  Cpu,
+  House,
+  MagicStick,
+  Collection,
+  Setting,
+  Clock,
+  Tools
+}
+
+// 根据图标名称获取图标组件
+const getIconComponent = (iconName: string | undefined) => {
+  if (!iconName) return Cpu
+  return iconMap[iconName] || Cpu
+}
 
 const uiStore = useUIStore()
 const route = useRoute()
@@ -149,7 +169,7 @@ const menuRoutes = computed(() =>
   align-items: center;
   justify-content: center;
   padding: 0 var(--spacing-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--sidebar-border-color);
 }
 
 .logo-container {
@@ -197,7 +217,7 @@ const menuRoutes = computed(() =>
     margin: 2px var(--spacing-sm);
     padding: 0 var(--spacing-md) !important;
     border-radius: var(--radius-md);
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--sidebar-text-color);
     transition: all var(--transition-fast);
 
     .menu-icon {
@@ -208,8 +228,8 @@ const menuRoutes = computed(() =>
     }
 
     &:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: #ffffff;
+      background: var(--sidebar-bg-hover);
+      color: var(--sidebar-text-hover);
 
       .menu-icon {
         color: var(--color-primary);
@@ -245,7 +265,7 @@ const menuRoutes = computed(() =>
   position: relative;
   z-index: 1;
   padding: var(--spacing-md);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--sidebar-border-color);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
@@ -255,13 +275,13 @@ const menuRoutes = computed(() =>
     justify-content: flex-start;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--sidebar-text-color);
     transition: all var(--transition-fast);
 
     &:hover {
       background: rgba(59, 130, 246, 0.1);
       border-color: var(--color-primary);
-      color: #ffffff;
+      color: var(--sidebar-text-hover);
       transform: translateX(4px);
     }
 
@@ -281,8 +301,8 @@ const menuRoutes = computed(() =>
 }
 
 // 折叠状态下的样式
-:deep(.el-menu--collapse) {
-  .sidebar-menu :deep(.el-menu-item) {
+.sidebar-menu.el-menu--collapse {
+  :deep(.el-menu-item) {
     padding: 0 !important;
     justify-content: center;
 
@@ -294,10 +314,13 @@ const menuRoutes = computed(() =>
       display: none;
     }
   }
+}
 
+.app-sidebar:has(.el-menu--collapse) {
   .sidebar-footer {
     .footer-btn {
       justify-content: center;
+      padding: var(--spacing-sm);
 
       .btn-text {
         display: none;
