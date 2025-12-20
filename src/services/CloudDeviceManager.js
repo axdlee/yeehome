@@ -58,7 +58,17 @@ class CloudDeviceManager extends EventEmitter {
   setOAuthConfig(config) {
     this.cloudService.setOAuthConfig(config);
   }
-  
+
+  /**
+   * 使用用户名密码登录（JWT 方式）
+   * @param {string} username - 用户名/邮箱
+   * @param {string} password - 密码
+   * @returns {Promise<Object>} 登录结果
+   */
+  async login(username, password) {
+    return this.cloudService.login(username, password);
+  }
+
   /**
    * 获取授权URL
    * @param {string} state - 随机字符串，用于防止CSRF攻击

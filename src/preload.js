@@ -43,8 +43,8 @@ contextBridge.exposeInMainWorld('electron', {
         'set-color-temperature', 'set-color', 'get-scenes-from-device',
         'get-groups-from-device', 'toggle-device', 'set-scene', 'set-default',
         // 云服务认证相关
-        'cloud-get-authorization-url', 'cloud-get-access-token', 'cloud-is-authenticated',
-        'cloud-get-auth-status', 'cloud-logout',
+        'cloud-get-authorization-url', 'cloud-get-access-token', 'cloud-login',
+        'cloud-is-authenticated', 'cloud-get-auth-status', 'cloud-logout',
         // 云设备相关
         'cloud-sync-devices', 'cloud-get-devices', 'cloud-get-device', 'cloud-query-devices',
         'cloud-control-device', 'cloud-toggle-power', 'cloud-set-brightness',

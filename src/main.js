@@ -596,6 +596,12 @@ registerIPCHandler(IPC.CloudAuth.GET_ACCESS_TOKEN, async (event, code) => {
   return { success: true, data: result }
 })
 
+// JWT 登录
+registerIPCHandler(IPC.CloudAuth.LOGIN, async (event, username, password) => {
+  const result = await cloudDeviceManager.login(username, password)
+  return { success: true, data: result }
+})
+
 registerIPCHandler(IPC.CloudAuth.IS_AUTHENTICATED, async () => {
   const result = cloudDeviceManager.isAuthenticated()
   return { success: true, data: result }

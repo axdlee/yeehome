@@ -57,7 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // 使用授权码获取Token
+  // 使用授权码获取Token (OAuth 方式)
   async function authenticate(code: string): Promise<boolean> {
     if (isAuthenticating.value) return false
 
@@ -76,6 +76,31 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('认证失败:', error)
       authError.value = error.message || '认证失败'
       ElMessage.error('云端认证失败')
+      return false
+    } finally {
+      isAuthenticating.value = false
+    }
+  }
+
+  // 使用用户名密码登录 (JWT 方式)
+  async function loginWithCredentials(username: string, password: string): Promise<boolean> {
+    if (isAuthenticating.value) return false
+
+    isAuthenticating.value = true
+    authError.value = null
+
+    try {
+      const result = await ipcService.login(username, password)
+      if (result.success) {
+        isAuthenticated.value = true
+        ElMessage.success(`欢迎回来，${result.username}`)
+        return true
+      }
+      return false
+    } catch (error: any) {
+      console.error('登录失败:', error)
+      authError.value = error.message || '登录失败'
+      ElMessage.error(error.message || '登录失败')
       return false
     } finally {
       isAuthenticating.value = false
@@ -145,6 +170,7 @@ export const useAuthStore = defineStore('auth', () => {
     checkAuthStatus,
     getAuthorizationUrl,
     authenticate,
+    loginWithCredentials,
     logout,
     // 事件监听
     setupEventListeners,

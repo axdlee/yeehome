@@ -233,6 +233,15 @@ class IPCService {
     return this.request<{ access_token: string; refresh_token: string }>('cloud-get-access-token', code)
   }
 
+  /**
+   * 使用用户名密码登录（JWT 方式）
+   * @param username - 用户名/邮箱
+   * @param password - 密码
+   */
+  async login(username: string, password: string): Promise<{ success: boolean; username: string; accessToken: string }> {
+    return this.request<{ success: boolean; username: string; accessToken: string }>('cloud-login', username, password)
+  }
+
   async isAuthenticated(): Promise<boolean> {
     return this.request<boolean>('cloud-is-authenticated')
   }

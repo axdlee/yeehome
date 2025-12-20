@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
 const axios = require('axios');
 const OAuthManager = require('./OAuthManager');
+const YeelightAuthManager = require('./YeelightAuthManager');
 const ConfigManager = require('./ConfigManager');
 
 class YeelightCloudService extends EventEmitter {
@@ -27,20 +28,26 @@ class YeelightCloudService extends EventEmitter {
 
     this.configManager = new ConfigManager();
     this.oauthManager = new OAuthManager();
-    // 从配置中获取API基础URL
-    this.apiBaseUrl = this.configManager.getConfig('cloudService.apiBaseUrl', '');
+    this.jwtAuthManager = new YeelightAuthManager();
+
+    // 选择认证方式：'jwt' 或 'oauth'
+    this.authMode = 'jwt'; // 默认使用 JWT 认证
+
+    // 从配置中获取 API 基础 URL
+    this.apiBaseUrl = this.configManager.getConfig('cloudService.apiBaseUrl', 'https://api.yeelight.com');
+
     this.httpClient = axios.create({
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json'
       }
     });
-    
-    // 注册请求拦截器，自动添加Authorization头
+
+    // 注册请求拦截器，自动添加 Authorization 头
     this.httpClient.interceptors.request.use(
       async (config) => {
-        if (this.oauthManager.isAuthenticated()) {
-          const token = await this.oauthManager.getCurrentToken();
+        if (this.isAuthenticated()) {
+          const token = await this.getCurrentToken();
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -49,113 +56,180 @@ class YeelightCloudService extends EventEmitter {
         return Promise.reject(error);
       }
     );
-    
+
     // 注册响应拦截器，处理错误情况
     this.httpClient.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
-        
-        // 处理token过期情况
+
+        // 处理 token 过期情况
         if (error.response && error.response.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
-          
+
           try {
-            // 尝试刷新token
-            await this.oauthManager.refreshAccessToken();
-            const token = await this.oauthManager.getCurrentToken();
+            // 尝试刷新 token
+            if (this.authMode === 'jwt') {
+              await this.jwtAuthManager.refreshAccessToken();
+            } else {
+              await this.oauthManager.refreshAccessToken();
+            }
+            const token = await this.getCurrentToken();
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return this.httpClient(originalRequest);
           } catch (refreshError) {
             // 刷新失败，触发认证错误事件
-            this.oauthManager.emit('authError', refreshError);
+            this.emit('authError', refreshError);
             return Promise.reject(refreshError);
           }
         }
-        
+
         return Promise.reject(error);
       }
     );
-    
-    // 监听OAuth事件
+
+    // 监听 OAuth 事件
     this.oauthManager.on('authenticated', (tokens) => {
       this.emit('authenticated', tokens);
     });
-    
+
     this.oauthManager.on('tokenRefreshed', (tokens) => {
       this.emit('tokenRefreshed', tokens);
     });
-    
+
     this.oauthManager.on('authError', (error) => {
       this.emit('authError', error);
     });
-    
+
     this.oauthManager.on('logout', () => {
       this.emit('logout');
     });
+
+    // 监听 JWT Auth 事件
+    this.jwtAuthManager.on('authenticated', (tokens) => {
+      console.log('YeelightCloudService: JWT 认证成功');
+      this.emit('authenticated', tokens);
+    });
+
+    this.jwtAuthManager.on('tokenRefreshed', (tokens) => {
+      console.log('YeelightCloudService: JWT token 已刷新');
+      this.emit('tokenRefreshed', tokens);
+    });
+
+    this.jwtAuthManager.on('authError', (error) => {
+      console.log('YeelightCloudService: JWT 认证错误:', error.message);
+      this.emit('authError', error);
+    });
+
+    this.jwtAuthManager.on('logout', () => {
+      console.log('YeelightCloudService: JWT 已登出');
+      this.emit('logout');
+    });
   }
-  
+
   /**
-   * 设置API基础URL
-   * @param {string} url - API基础URL
+   * 设置认证模式
+   * @param {string} mode - 'jwt' 或 'oauth'
+   */
+  setAuthMode(mode) {
+    this.authMode = mode;
+    console.log(`YeelightCloudService: 认证模式切换为 ${mode}`);
+  }
+
+  /**
+   * 使用用户名密码登录（JWT 方式）
+   * @param {string} username - 用户名/邮箱
+   * @param {string} password - 密码
+   * @returns {Promise<Object>} 登录结果
+   */
+  async login(username, password) {
+    this.authMode = 'jwt';
+    return this.jwtAuthManager.login(username, password);
+  }
+
+  /**
+   * 设置 API 基础 URL
+   * @param {string} url - API 基础 URL
    */
   setApiBaseUrl(url) {
     this.apiBaseUrl = url;
   }
-  
+
   /**
-   * 设置OAuth配置
-   * @param {Object} config - OAuth配置
+   * 设置 OAuth 配置
+   * @param {Object} config - OAuth 配置
    */
   setOAuthConfig(config) {
     this.oauthManager.setConfig(config);
   }
-  
+
   /**
-   * 获取授权URL
-   * @param {string} state - 随机字符串，用于防止CSRF攻击
-   * @returns {string} 授权URL
+   * 获取授权 URL（OAuth 方式）
+   * @param {string} state - 随机字符串，用于防止 CSRF 攻击
+   * @returns {string} 授权 URL
    */
   getAuthorizationUrl(state) {
     return this.oauthManager.getAuthorizationUrl(state);
   }
-  
+
   /**
-   * 使用授权码换取访问令牌
+   * 使用授权码换取访问令牌（OAuth 方式）
    * @param {string} code - 授权码
-   * @returns {Promise<Object>} 包含access_token和refresh_token的对象
+   * @returns {Promise<Object>} 包含 access_token 和 refresh_token 的对象
    */
   async getAccessToken(code) {
+    this.authMode = 'oauth';
     return this.oauthManager.getAccessToken(code);
   }
-  
+
   /**
    * 检查是否已认证
    * @returns {boolean} 是否已认证
    */
   isAuthenticated() {
+    if (this.authMode === 'jwt') {
+      return this.jwtAuthManager.isAuthenticated();
+    }
     return this.oauthManager.isAuthenticated();
   }
-  
+
+  /**
+   * 获取当前 access token
+   * @returns {Promise<string>} access token
+   */
+  async getCurrentToken() {
+    if (this.authMode === 'jwt') {
+      return this.jwtAuthManager.getCurrentToken();
+    }
+    return this.oauthManager.getCurrentToken();
+  }
+
   /**
    * 获取当前认证状态
    * @returns {Object} 当前认证状态
    */
   getAuthStatus() {
+    if (this.authMode === 'jwt') {
+      return this.jwtAuthManager.getAuthStatus();
+    }
     return this.oauthManager.getAuthStatus();
   }
-  
+
   /**
    * 登出
    */
   logout() {
-    this.oauthManager.clearTokens();
+    if (this.authMode === 'jwt') {
+      this.jwtAuthManager.clearTokens();
+    } else {
+      this.oauthManager.clearTokens();
+    }
   }
-  
+
   /**
-   * 发送API请求
+   * 发送 API 请求
    * @param {string} method - 请求方法
-   * @param {string} endpoint - API端点
+   * @param {string} endpoint - API 端点
    * @param {Object} data - 请求数据
    * @param {Object} headers - 额外的请求头
    * @returns {Promise<Object>} 响应数据
@@ -164,7 +238,7 @@ class YeelightCloudService extends EventEmitter {
     if (!this.isAuthenticated()) {
       throw new Error('Not authenticated');
     }
-    
+
     const url = `${this.apiBaseUrl}${endpoint}`;
     const config = {
       method,
@@ -173,15 +247,15 @@ class YeelightCloudService extends EventEmitter {
         ...headers
       }
     };
-    
+
     if (data) {
       config.data = data;
     }
-    
+
     const response = await this.httpClient(config);
     return response.data;
   }
-  
+
   /**
    * 设备发现 - 获取设备列表
    * @returns {Promise<Object>} 设备列表
@@ -196,10 +270,10 @@ class YeelightCloudService extends EventEmitter {
         }
       ]
     };
-    
+
     return this.sendApiRequest('POST', '/', data);
   }
-  
+
   /**
    * 设备控制
    * @param {Array} commands - 命令列表
@@ -218,10 +292,10 @@ class YeelightCloudService extends EventEmitter {
         }
       ]
     };
-    
+
     return this.sendApiRequest('POST', '/', data);
   }
-  
+
   /**
    * 查询设备状态
    * @param {Array} devices - 设备列表
@@ -240,18 +314,18 @@ class YeelightCloudService extends EventEmitter {
         }
       ]
     };
-    
+
     return this.sendApiRequest('POST', '/', data);
   }
-  
+
   /**
-   * 生成唯一的requestId
+   * 生成唯一的 requestId
    * @returns {string} requestId
    */
   generateRequestId() {
     return `${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
   }
-  
+
   /**
    * 创建设备控制命令
    * @param {Array} devices - 设备列表
@@ -264,7 +338,7 @@ class YeelightCloudService extends EventEmitter {
       execution: executions
     };
   }
-  
+
   /**
    * 创建设备查询请求
    * @param {Array} devices - 设备列表
@@ -273,23 +347,23 @@ class YeelightCloudService extends EventEmitter {
   createQueryDevices(devices) {
     return devices;
   }
-  
+
   /**
    * 解析设备列表响应
-   * @param {Object} response - API响应
+   * @param {Object} response - API 响应
    * @returns {Array} 设备列表
    */
   parseDevicesResponse(response) {
     if (!response || !response.payload || !response.payload.devices) {
       return [];
     }
-    
+
     return response.payload.devices;
   }
-  
+
   /**
    * 解析设备控制响应
-   * @param {Object} response - API响应
+   * @param {Object} response - API 响应
    * @returns {Object} 控制结果
    */
   parseControlResponse(response) {
@@ -299,35 +373,35 @@ class YeelightCloudService extends EventEmitter {
         commands: []
       };
     }
-    
+
     return {
       success: true,
       commands: response.payload.commands
     };
   }
-  
+
   /**
    * 解析设备查询响应
-   * @param {Object} response - API响应
+   * @param {Object} response - API 响应
    * @returns {Object} 设备状态
    */
   parseQueryResponse(response) {
     if (!response || !response.payload || !response.payload.devices) {
       return {};
     }
-    
+
     return response.payload.devices;
   }
-  
+
   /**
-   * 处理API错误
+   * 处理 API 错误
    * @param {Error} error - 错误对象
    * @returns {Object} 错误信息
    */
   handleApiError(error) {
     let errorMessage = 'API请求失败';
     let errorCode = 'UNKNOWN_ERROR';
-    
+
     if (error.response) {
       // 服务器返回了错误状态码
       const data = error.response.data;
@@ -350,7 +424,7 @@ class YeelightCloudService extends EventEmitter {
       errorMessage = error.message;
       errorCode = 'REQUEST_ERROR';
     }
-    
+
     return {
       code: errorCode,
       message: errorMessage,

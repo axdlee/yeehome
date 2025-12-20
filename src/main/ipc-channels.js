@@ -22,6 +22,7 @@ const LocalDevice = {
 const CloudAuth = {
   GET_AUTH_URL: 'cloud-get-authorization-url',
   GET_ACCESS_TOKEN: 'cloud-get-access-token',
+  LOGIN: 'cloud-login',           // JWT 登录
   IS_AUTHENTICATED: 'cloud-is-authenticated',
   GET_AUTH_STATUS: 'cloud-get-auth-status',
   LOGOUT: 'cloud-logout'
