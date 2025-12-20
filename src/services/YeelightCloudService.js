@@ -152,7 +152,8 @@ class YeelightCloudService extends EventEmitter {
    * @param {string} url - API 基础 URL
    */
   setApiBaseUrl(url) {
-    this.apiBaseUrl = url;
+    // 确保 URL 有效，如果为空则使用默认值
+    this.apiBaseUrl = url && url.trim() !== '' ? url : 'https://api.yeelight.com';
   }
 
   /**
@@ -239,7 +240,12 @@ class YeelightCloudService extends EventEmitter {
       throw new Error('Not authenticated');
     }
 
-    const url = `${this.apiBaseUrl}${endpoint}`;
+    // 确保 apiBaseUrl 有效，提供默认值保护
+    const validApiBaseUrl = this.apiBaseUrl && this.apiBaseUrl.trim() !== ''
+      ? this.apiBaseUrl
+      : 'https://api.yeelight.com';
+
+    const url = `${validApiBaseUrl}${endpoint}`;
     const config = {
       method,
       url,
