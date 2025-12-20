@@ -31,7 +31,7 @@ class YeelightAuthManager extends EventEmitter {
 
     // HTTP 客户端配置
     this.httpClient = axios.create({
-      timeout: 15000,
+      timeout: 30000,
       headers: {
         'accept': 'application/json, text/plain, */*',
         'accept-language': 'zh-CN,zh;q=0.9',

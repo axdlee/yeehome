@@ -37,7 +37,7 @@ class YeelightCloudService extends EventEmitter {
     this.apiBaseUrl = this.configManager.getConfig('cloudService.apiBaseUrl', 'https://api.yeelight.com');
 
     this.httpClient = axios.create({
-      timeout: 10000,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json'
       }
@@ -251,15 +251,21 @@ class YeelightCloudService extends EventEmitter {
       url,
       headers: {
         ...headers
-      }
+      },
+      timeout: 30000 // 添加30秒超时，防止请求挂起
     };
 
     if (data) {
       config.data = data;
     }
 
-    const response = await this.httpClient(config);
-    return response.data;
+    try {
+      const response = await this.httpClient(config);
+      return response.data;
+    } catch (error) {
+      console.error(`API 请求失败: ${method} ${url}`, error.message);
+      throw error;
+    }
   }
 
   /**
