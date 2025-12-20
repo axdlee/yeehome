@@ -21,6 +21,37 @@ declare global {
   }
 }
 
+// IPC 响应类型
+interface IPCResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: {
+    name: string
+    code: string
+    message: string
+    statusCode?: number
+    timestamp?: string
+    context?: string
+  }
+}
+
+// IPC 错误类
+class IPCError extends Error {
+  code: string
+  statusCode: number
+  timestamp: string
+  context: string
+
+  constructor(error: IPCResponse['error']) {
+    super(error?.message || '未知错误')
+    this.name = error?.name || 'IPCError'
+    this.code = error?.code || 'UNKNOWN_ERROR'
+    this.statusCode = error?.statusCode || 500
+    this.timestamp = error?.timestamp || new Date().toISOString()
+    this.context = error?.context || 'IPC'
+  }
+}
+
 // 事件映射类型
 interface EventCallbacks {
   // 本地设备事件
@@ -84,6 +115,20 @@ class IPCService {
     }
   }
 
+  /**
+   * 统一的 IPC 请求方法
+   * 处理响应格式并在错误时抛出 IPCError
+   */
+  private async request<T>(channel: string, ...args: any[]): Promise<T> {
+    const response: IPCResponse<T> = await this.ipcRenderer.invoke(channel, ...args)
+
+    if (!response.success) {
+      throw new IPCError(response.error)
+    }
+
+    return response.data as T
+  }
+
   // 注册全局事件监听器
   private registerGlobalEventListeners(): void {
     Object.entries(eventMap).forEach(([channel, callbackName]) => {
@@ -127,186 +172,189 @@ class IPCService {
   // ==================== 本地设备方法 ====================
 
   async discoverDevices(): Promise<void> {
-    return this.ipcRenderer.invoke('discover-devices')
+    return this.request<void>('discover-devices')
   }
 
   async getDevices(): Promise<Device[]> {
-    return this.ipcRenderer.invoke('get-devices')
+    return this.request<Device[]>('get-devices')
   }
 
   async togglePower(deviceId: string, power: boolean): Promise<boolean> {
-    return this.ipcRenderer.invoke('toggle-power', deviceId, power)
+    return this.request<boolean>('toggle-power', deviceId, power)
   }
 
   async setBrightness(deviceId: string, brightness: number): Promise<boolean> {
-    return this.ipcRenderer.invoke('set-brightness', deviceId, brightness)
+    return this.request<boolean>('set-brightness', deviceId, brightness)
   }
 
   async setColorTemperature(deviceId: string, ct: number): Promise<boolean> {
-    return this.ipcRenderer.invoke('set-color-temperature', deviceId, ct)
+    return this.request<boolean>('set-color-temperature', deviceId, ct)
   }
 
   async setColor(deviceId: string, rgb: number): Promise<boolean> {
-    return this.ipcRenderer.invoke('set-color', deviceId, rgb)
+    return this.request<boolean>('set-color', deviceId, rgb)
   }
 
   async toggleDevice(deviceId: string): Promise<boolean> {
-    return this.ipcRenderer.invoke('toggle-device', deviceId)
+    return this.request<boolean>('toggle-device', deviceId)
   }
 
   async setScene(deviceId: string, sceneType: string, params: any[]): Promise<boolean> {
-    return this.ipcRenderer.invoke('set-scene', deviceId, sceneType, params)
+    return this.request<boolean>('set-scene', deviceId, sceneType, params)
   }
 
   async setDefault(deviceId: string): Promise<boolean> {
-    return this.ipcRenderer.invoke('set-default', deviceId)
+    return this.request<boolean>('set-default', deviceId)
   }
 
   // ==================== 云认证方法 ====================
 
   async getAuthorizationUrl(state?: string): Promise<string> {
-    return this.ipcRenderer.invoke('cloud-get-authorization-url', state)
+    return this.request<string>('cloud-get-authorization-url', state)
   }
 
   async getAccessToken(code: string): Promise<{ access_token: string; refresh_token: string }> {
-    return this.ipcRenderer.invoke('cloud-get-access-token', code)
+    return this.request<{ access_token: string; refresh_token: string }>('cloud-get-access-token', code)
   }
 
   async isAuthenticated(): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-is-authenticated')
+    return this.request<boolean>('cloud-is-authenticated')
   }
 
   async getAuthStatus(): Promise<{ authenticated: boolean; expiresAt?: number }> {
-    return this.ipcRenderer.invoke('cloud-get-auth-status')
+    return this.request<{ authenticated: boolean; expiresAt?: number }>('cloud-get-auth-status')
   }
 
   async logout(): Promise<void> {
-    return this.ipcRenderer.invoke('cloud-logout')
+    return this.request<void>('cloud-logout')
   }
 
   // ==================== 云设备方法 ====================
 
   async cloudSyncDevices(): Promise<Device[]> {
-    return this.ipcRenderer.invoke('cloud-sync-devices')
+    return this.request<Device[]>('cloud-sync-devices')
   }
 
   async cloudGetDevices(): Promise<Device[]> {
-    return this.ipcRenderer.invoke('cloud-get-devices')
+    return this.request<Device[]>('cloud-get-devices')
   }
 
   async cloudGetDevice(deviceId: string): Promise<Device | null> {
-    return this.ipcRenderer.invoke('cloud-get-device', deviceId)
+    return this.request<Device | null>('cloud-get-device', deviceId)
   }
 
   async cloudTogglePower(deviceId: string, power: boolean): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-toggle-power', deviceId, power)
+    return this.request<boolean>('cloud-toggle-power', deviceId, power)
   }
 
   async cloudSetBrightness(deviceId: string, brightness: number): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-set-brightness', deviceId, brightness)
+    return this.request<boolean>('cloud-set-brightness', deviceId, brightness)
   }
 
   async cloudSetColorTemperature(deviceId: string, ct: number): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-set-color-temperature', deviceId, ct)
+    return this.request<boolean>('cloud-set-color-temperature', deviceId, ct)
   }
 
   async cloudSetColor(deviceId: string, rgb: number): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-set-color', deviceId, rgb)
+    return this.request<boolean>('cloud-set-color', deviceId, rgb)
   }
 
   // ==================== 云房间方法 ====================
 
   async cloudSyncRooms(): Promise<Room[]> {
-    return this.ipcRenderer.invoke('cloud-sync-rooms')
+    return this.request<Room[]>('cloud-sync-rooms')
   }
 
   async cloudGetRooms(): Promise<Room[]> {
-    return this.ipcRenderer.invoke('cloud-get-rooms')
+    return this.request<Room[]>('cloud-get-rooms')
   }
 
   async cloudGetRoom(roomId: string): Promise<Room | null> {
-    return this.ipcRenderer.invoke('cloud-get-room', roomId)
+    return this.request<Room | null>('cloud-get-room', roomId)
   }
 
   // ==================== 云分组方法 ====================
 
   async cloudSyncGroups(): Promise<Group[]> {
-    return this.ipcRenderer.invoke('cloud-sync-groups')
+    return this.request<Group[]>('cloud-sync-groups')
   }
 
   async cloudGetGroups(): Promise<Group[]> {
-    return this.ipcRenderer.invoke('cloud-get-groups')
+    return this.request<Group[]>('cloud-get-groups')
   }
 
   async cloudGetGroup(groupId: string): Promise<Group | null> {
-    return this.ipcRenderer.invoke('cloud-get-group', groupId)
+    return this.request<Group | null>('cloud-get-group', groupId)
   }
 
   async cloudToggleGroupPower(groupId: string, power: boolean): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-toggle-group-power', groupId, power)
+    return this.request<boolean>('cloud-toggle-group-power', groupId, power)
   }
 
   // ==================== 云情景方法 ====================
 
   async cloudSyncScenes(): Promise<Scene[]> {
-    return this.ipcRenderer.invoke('cloud-sync-scenes')
+    return this.request<Scene[]>('cloud-sync-scenes')
   }
 
   async cloudGetScenes(): Promise<Scene[]> {
-    return this.ipcRenderer.invoke('cloud-get-scenes')
+    return this.request<Scene[]>('cloud-get-scenes')
   }
 
   async cloudGetScene(sceneId: string): Promise<Scene | null> {
-    return this.ipcRenderer.invoke('cloud-get-scene', sceneId)
+    return this.request<Scene | null>('cloud-get-scene', sceneId)
   }
 
   async cloudExecuteScene(sceneId: string): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-execute-scene', sceneId)
+    return this.request<boolean>('cloud-execute-scene', sceneId)
   }
 
   // ==================== 云自动化方法 ====================
 
   async cloudSyncAutomations(): Promise<Automation[]> {
-    return this.ipcRenderer.invoke('cloud-sync-automations')
+    return this.request<Automation[]>('cloud-sync-automations')
   }
 
   async cloudGetAutomations(): Promise<Automation[]> {
-    return this.ipcRenderer.invoke('cloud-get-automations')
+    return this.request<Automation[]>('cloud-get-automations')
   }
 
   async cloudGetAutomation(automationId: string): Promise<Automation | null> {
-    return this.ipcRenderer.invoke('cloud-get-automation', automationId)
+    return this.request<Automation | null>('cloud-get-automation', automationId)
   }
 
   async cloudEnableAutomation(automationId: string): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-enable-automation', automationId)
+    return this.request<boolean>('cloud-enable-automation', automationId)
   }
 
   async cloudDisableAutomation(automationId: string): Promise<boolean> {
-    return this.ipcRenderer.invoke('cloud-disable-automation', automationId)
+    return this.request<boolean>('cloud-disable-automation', automationId)
   }
 
   // ==================== 同步方法 ====================
 
   async cloudSyncNow(syncTypes?: string[]): Promise<void> {
-    return this.ipcRenderer.invoke('cloud-sync-now', syncTypes)
+    return this.request<void>('cloud-sync-now', syncTypes)
   }
 
   async cloudGetSyncStatus(): Promise<{ lastSync?: Date; syncing: boolean }> {
-    return this.ipcRenderer.invoke('cloud-get-sync-status')
+    return this.request<{ lastSync?: Date; syncing: boolean }>('cloud-get-sync-status')
   }
 
   // ==================== 系统方法 ====================
 
   async openExternal(url: string): Promise<void> {
-    return this.ipcRenderer.invoke('open-external', url)
+    return this.request<void>('open-external', url)
   }
 
   async getAppVersion(): Promise<string> {
-    return this.ipcRenderer.invoke('get-app-version')
+    return this.request<string>('get-app-version')
   }
 }
 
 // 单例导出
 const ipcService = new IPCService()
 export default ipcService
+
+// 导出 IPCError 供外部使用
+export { IPCError }

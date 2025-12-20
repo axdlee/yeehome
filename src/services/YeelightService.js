@@ -611,12 +611,10 @@ class YeelightService extends EventEmitter {
       console.log('设备发现已停止');
     }
     
-    // 关闭所有设备连接
-    for (const [deviceId, socket] of this.deviceSockets.entries()) {
-      socket.end();
-      socket.destroy();
+    // 通过连接管理器关闭所有设备连接
+    if (this.connectionManager) {
+      this.connectionManager.closeAll();
     }
-    this.deviceSockets.clear();
   }
 
   /**
