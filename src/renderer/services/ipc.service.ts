@@ -381,6 +381,44 @@ class IPCService {
     return this.request<Record<string, number>>('timer-get-stats')
   }
 
+  // ==================== AI场景推荐方法 ====================
+
+  async getAIRecommendations(options?: { maxRecommendations?: number }): Promise<any> {
+    return this.request<any>('ai-get-recommendations', options)
+  }
+
+  async getAIScenes(): Promise<{ scenes: any[] }> {
+    return this.request<{ scenes: any[] }>('ai-get-scenes')
+  }
+
+  async applyAIScene(sceneId: string): Promise<{ success: boolean; results: any[] }> {
+    return this.request<{ success: boolean; results: any[] }>('ai-apply-scene', sceneId)
+  }
+
+  async recordAIRecommendationFeedback(sceneId: string, feedback: any): Promise<void> {
+    return this.request<void>('ai-record-feedback', { sceneId, feedback })
+  }
+
+  async createAICustomScene(sceneData: any): Promise<{ scene: any }> {
+    return this.request<{ scene: any }>('ai-create-custom-scene', sceneData)
+  }
+
+  async updateAIScene(sceneId: string, updates: any): Promise<{ scene: any }> {
+    return this.request<{ scene: any }>('ai-update-scene', { sceneId, updates })
+  }
+
+  async deleteAIScene(sceneId: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>('ai-delete-scene', sceneId)
+  }
+
+  async getAIUsageStats(): Promise<any> {
+    return this.request<any>('ai-get-usage-stats')
+  }
+
+  async updateAIPreferences(prefs: any): Promise<void> {
+    return this.request<void>('ai-update-preferences', prefs)
+  }
+
   // ==================== 系统方法 ====================
 
   async openExternal(url: string): Promise<void> {

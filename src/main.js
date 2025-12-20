@@ -11,6 +11,7 @@ const EventManager = require('./services/core/EventManager')
 const LogSanitizer = require('./services/security/LogSanitizer')
 const ErrorHandler = require('./middleware/ErrorHandler')
 const TimerManager = require('./services/timer/TimerManager')
+const SceneRecommender = require('./services/ai/SceneRecommender')
 const IPC = require('./main/ipc-channels')
 
 // 创建全局 EventManager 实例
@@ -101,6 +102,9 @@ const syncManager = new SyncManager(
 
 // 创建定时管理器实例
 const timerManager = new TimerManager()
+
+// 创建AI场景推荐器实例
+const sceneRecommender = new SceneRecommender()
 
 // 监听云设备管理器事件
 forwardEventToRenderer(

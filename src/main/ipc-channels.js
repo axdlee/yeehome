@@ -101,6 +101,19 @@ const Timer = {
   GET_UPCOMING: 'timer-get-upcoming'
 }
 
+// AI场景推荐相关
+const AIRecommendation = {
+  GET_RECOMMENDATIONS: 'ai-get-recommendations',
+  GET_SCENES: 'ai-get-scenes',
+  APPLY_SCENE: 'ai-apply-scene',
+  RECORD_FEEDBACK: 'ai-record-feedback',
+  CREATE_CUSTOM_SCENE: 'ai-create-custom-scene',
+  UPDATE_SCENE: 'ai-update-scene',
+  DELETE_SCENE: 'ai-delete-scene',
+  GET_USAGE_STATS: 'ai-get-usage-stats',
+  UPDATE_PREFERENCES: 'ai-update-preferences'
+}
+
 // 事件通道 (用于渲染进程 -> 主进程的单向通知)
 const Events = {
   DEVICE_ADDED: 'device-added',
@@ -138,5 +151,6 @@ module.exports = {
   Sync,
   System,
   Timer,
+  AIRecommendation,
   Events
 }
