@@ -116,7 +116,10 @@ class CloudDeviceManager extends EventEmitter {
    * @returns {Promise<Array>} 同步后的设备列表
    */
   async syncDevices(forceRefresh = false) {
+    console.log('[CloudDeviceManager] syncDevices 开始, forceRefresh:', forceRefresh);
+
     if (!this.isAuthenticated()) {
+      console.log('[CloudDeviceManager] 未认证');
       throw new Error('Not authenticated');
     }
 
@@ -125,14 +128,18 @@ class CloudDeviceManager extends EventEmitter {
       const cached = this.cache.get('devices:all');
       if (cached) {
         this.logger.debug('使用缓存的设备列表');
+        console.log('[CloudDeviceManager] 使用缓存，设备数:', cached.length);
         return cached;
       }
     }
 
     try {
       this.logger.info('开始同步云端设备...');
+      console.log('[CloudDeviceManager] 调用 discoverDevices...');
       const response = await this.cloudService.discoverDevices();
+      console.log('[CloudDeviceManager] discoverDevices 返回:', JSON.stringify(response).substring(0, 200));
       const devices = this.cloudService.parseDevicesResponse(response);
+      console.log('[CloudDeviceManager] 解析到设备数:', devices.length);
 
       // 更新设备列表
       this.devices.clear();

@@ -288,7 +288,12 @@ class YeelightCloudService extends EventEmitter {
       ]
     };
 
-    return this.sendApiRequest('POST', '/', data);
+    console.log('[YeelightCloudService] discoverDevices 请求:', JSON.stringify(data));
+    console.log('[YeelightCloudService] apiBaseUrl:', this.apiBaseUrl);
+
+    const result = await this.sendApiRequest('POST', '', data);
+    console.log('[YeelightCloudService] discoverDevices 响应:', JSON.stringify(result).substring(0, 500));
+    return result;
   }
 
   /**

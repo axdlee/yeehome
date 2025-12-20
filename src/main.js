@@ -619,8 +619,15 @@ registerIPCHandler(IPC.CloudAuth.LOGOUT, async () => {
 
 // 设备相关
 registerIPCHandler(IPC.CloudDevice.SYNC, async () => {
-  const result = await cloudDeviceManager.syncDevices()
-  return { success: true, data: result }
+  console.log('[IPC] cloud-sync-devices 被调用')
+  try {
+    const result = await cloudDeviceManager.syncDevices()
+    console.log('[IPC] cloud-sync-devices 成功，设备数:', result?.length || 0)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('[IPC] cloud-sync-devices 失败:', error.message)
+    throw error
+  }
 })
 
 registerIPCHandler(IPC.CloudDevice.GET_ALL, async () => {
@@ -665,8 +672,15 @@ registerIPCHandler(IPC.CloudDevice.SET_COLOR, async (event, deviceId, rgb) => {
 
 // 房间相关
 registerIPCHandler(IPC.CloudRoom.SYNC, async () => {
-  const result = await cloudRoomManager.syncRooms()
-  return { success: true, data: result }
+  console.log('[IPC] cloud-sync-rooms 被调用')
+  try {
+    const result = await cloudRoomManager.syncRooms()
+    console.log('[IPC] cloud-sync-rooms 成功，房间数:', result?.length || 0)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('[IPC] cloud-sync-rooms 失败:', error.message)
+    throw error
+  }
 })
 
 registerIPCHandler(IPC.CloudRoom.GET_ALL, async () => {
