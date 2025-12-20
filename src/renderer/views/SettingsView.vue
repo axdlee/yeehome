@@ -200,11 +200,35 @@ const discoverTimeout = ref(10)
 
 // 方法
 const handleLogin = async () => {
-  const url = await authStore.getAuthorizationUrl()
-  if (url) {
-    // 打开浏览器进行OAuth认证
-    await ipcService.openExternal(url)
-    ElMessage.info('请在浏览器中完成登录')
+  try {
+    const { value: formData } = await ElMessageBox.prompt(
+      '请输入 Yeelight 账号信息',
+      '登录 Yeelight',
+      {
+        confirmButtonText: '登录',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '请输入用户名',
+        inputType: 'text'
+      }
+    )
+
+    const username = formData.username || formData
+    const { value: password } = await ElMessageBox.prompt(
+      '请输入密码',
+      '登录 Yeelight',
+      {
+        confirmButtonText: '登录',
+        cancelButtonText: '取消',
+        inputType: 'password',
+        inputPattern: /\S+/,
+        inputErrorMessage: '请输入密码'
+      }
+    )
+
+    await authStore.loginWithCredentials(username, password)
+  } catch {
+    // 用户取消
   }
 }
 

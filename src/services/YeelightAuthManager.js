@@ -172,9 +172,9 @@ class YeelightAuthManager extends EventEmitter {
       const tokenList = await this.getTokenList();
 
       if (tokenList && tokenList.length > 0) {
-        // 使用第一个可用的 token
+        // 使用第一个可用的 token（API 返回的字段名是 accessToken）
         const firstToken = tokenList[0];
-        this.tokens.accessToken = firstToken.token;
+        this.tokens.accessToken = firstToken.accessToken || firstToken.token;
         this.tokens.accessTokenId = firstToken.id;
         console.log('YeelightAuthManager: 使用现有 access token');
       } else {
