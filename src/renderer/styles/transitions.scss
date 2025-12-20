@@ -1,4 +1,4 @@
-// 过渡动画
+// ========== 基础过渡动画 ==========
 
 // 淡入淡出
 .fade-enter-active,
@@ -66,3 +66,389 @@
 .collapse-leave-to {
   height: 0;
 }
+
+// ========== 弹性动画 ==========
+
+// 弹性弹跳
+.bounce-enter-active {
+  animation: bounce-in var(--transition-bounce);
+}
+
+.bounce-leave-active {
+  transition: opacity var(--transition-fast);
+}
+
+.bounce-leave-to {
+  opacity: 0;
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// 弹簧动画
+.spring-enter-active {
+  animation: spring-in var(--transition-spring);
+}
+
+.spring-leave-active {
+  animation: spring-out var(--transition-fast);
+}
+
+@keyframes spring-in {
+  0% {
+    transform: scale(0.8) translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spring-out {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9) translateY(-10px);
+    opacity: 0;
+  }
+}
+
+// ========== 发光动画 ==========
+
+// 脉冲发光
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: var(--glow-primary-sm);
+  }
+  50% {
+    box-shadow: var(--glow-primary);
+  }
+}
+
+// 呼吸效果
+.breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+// 闪烁效果
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+// 光波效果
+.light-wave {
+  position: relative;
+}
+
+.light-wave::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: var(--gradient-primary);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: light-wave 3s linear infinite;
+  opacity: 0;
+}
+
+@keyframes light-wave {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+// ========== 浮动动画 ==========
+
+// 浮动效果
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+// 悬浮效果
+.hover-lift {
+  transition: transform var(--transition-spring), box-shadow var(--transition-normal);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+// 悬浮缩放
+.hover-scale {
+  transition: transform var(--transition-spring);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+// ========== 涟漪动画 ==========
+
+// 涟漪效果
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple 0.6s ease-out;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+// 点脉冲
+.dot-pulse {
+  position: relative;
+}
+
+.dot-pulse::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+}
+
+// ========== 进度条动画 ==========
+
+// 进度条填充
+.progress-fill {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: progress-fill 1s ease-out forwards;
+}
+
+@keyframes progress-fill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+// 加载旋转
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ========== 状态动画 ==========
+
+// 成功脉冲
+.success-pulse {
+  animation: success-pulse 0.5s ease-out;
+}
+
+@keyframes success-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+    color: var(--color-success);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+// 错误抖动
+.error-shake {
+  animation: error-shake 0.5s ease-out;
+}
+
+@keyframes error-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-5px);
+  }
+  40%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+// 开关滑动
+.switch-slide-enter-active,
+.switch-slide-leave-active {
+  transition: all var(--transition-normal);
+}
+
+.switch-slide-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.switch-slide-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+// ========== 列表动画 ==========
+
+// 列表进入
+.list-enter-active {
+  animation: list-enter 0.4s ease-out backwards;
+}
+
+.list-leave-active {
+  animation: list-leave 0.3s ease-in forwards;
+}
+
+@keyframes list-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes list-leave {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+// 交错列表动画
+.stagger-list .list-item {
+  animation: list-enter 0.4s ease-out backwards;
+}
+
+.stagger-list .list-item:nth-child(1) { animation-delay: 0ms; }
+.stagger-list .list-item:nth-child(2) { animation-delay: 50ms; }
+.stagger-list .list-item:nth-child(3) { animation-delay: 100ms; }
+.stagger-list .list-item:nth-child(4) { animation-delay: 150ms; }
+.stagger-list .list-item:nth-child(5) { animation-delay: 200ms; }
+.stagger-list .list-item:nth-child(6) { animation-delay: 250ms; }
+.stagger-list .list-item:nth-child(7) { animation-delay: 300ms; }
+.stagger-list .list-item:nth-child(8) { animation-delay: 350ms; }

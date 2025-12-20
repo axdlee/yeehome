@@ -3,7 +3,7 @@
     <!-- 标题区域 -->
     <div class="panel-header">
       <div class="header-left">
-        <el-icon class="ai-icon"><Magic /></el-icon>
+        <el-icon class="ai-icon"><Opportunity /></el-icon>
         <span class="title">AI智能推荐</span>
       </div>
       <div class="header-right">
@@ -77,7 +77,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Magic, Refresh, Loading, View } from '@element-plus/icons-vue'
+import { Opportunity, Refresh, Loading, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import RecommendationCard from './RecommendationCard.vue'
 import { useRecommendationStore } from '@/renderer/stores/recommendation'
