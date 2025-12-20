@@ -251,24 +251,41 @@ class YeelightCloudService extends EventEmitter {
       : 'https://app.yeelight.com/v1/smartHome/fulfillment';
 
     const url = `${validApiBaseUrl}${endpoint}`;
+    const token = await this.getCurrentToken();
+
+    console.log('[YeelightCloudService] 发送请求:');
+    console.log('  URL:', url);
+    console.log('  Method:', method);
+    console.log('  Token (前20字符):', token ? token.substring(0, 20) + '...' : 'null');
+
     const config = {
       method,
       url,
       headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
         ...headers
       },
-      timeout: 30000 // 添加30秒超时，防止请求挂起
+      timeout: 30000
     };
 
     if (data) {
       config.data = data;
+      console.log('  请求体:', JSON.stringify(data));
     }
 
     try {
       const response = await this.httpClient(config);
+      console.log('[YeelightCloudService] 响应状态:', response.status);
+      console.log('[YeelightCloudService] 响应数据:', JSON.stringify(response.data).substring(0, 300));
       return response.data;
     } catch (error) {
-      console.error(`API 请求失败: ${method} ${url}`, error.message);
+      console.error(`[YeelightCloudService] API 请求失败: ${method} ${url}`);
+      console.error('  错误信息:', error.message);
+      if (error.response) {
+        console.error('  响应状态:', error.response.status);
+        console.error('  响应数据:', JSON.stringify(error.response.data));
+      }
       throw error;
     }
   }

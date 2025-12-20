@@ -11,9 +11,21 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { ElConfigProvider } from 'element-plus'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import AppLayout from './components/layout/AppLayout.vue'
+import { useAuthStore } from './stores/auth'
+
+const authStore = useAuthStore()
+
+// 应用启动时检查认证状态
+onMounted(async () => {
+  console.log('[App] 应用启动，检查认证状态...')
+  authStore.setupEventListeners()
+  const isAuth = await authStore.checkAuthStatus()
+  console.log('[App] 认证状态:', isAuth)
+})
 </script>
 
 <style>
