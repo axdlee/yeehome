@@ -218,10 +218,23 @@
   --el-input-border-color: #334155;
   --el-input-text-color: #f1f5f9;
   --el-input-placeholder-color: #475569;
+  --el-input-fill: #1e293b;
+  --el-input-hover-border-color: #475569;
+  --el-input-focus-border-color: #3b82f6;
+  --el-input-group-bg-color: #1e293b;
+  
+  // 数字输入框
+  --el-input-number-input-bg: #1e293b;
+  --el-input-number-input-color: #f1f5f9;
+  --el-input-number-input-border-color: #334155;
+  --el-input-number-decrease-hover-bg: #334155;
+  --el-input-number-increase-hover-bg: #334155;
   
   // 选择器
   --el-select-dropdown-bg-color: #1e293b;
   --el-select-dropdown-border-color: #334155;
+  --el-select-input-color: #f1f5f9;
+  --el-select-placeholder-color: #475569;
   
   // 按钮
   --el-button-bg-color: #1e293b;
