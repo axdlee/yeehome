@@ -341,6 +341,36 @@ class IPCService {
     return this.request<{ lastSync?: Date; syncing: boolean }>('cloud-get-sync-status')
   }
 
+  // ==================== 定时任务方法 ====================
+
+  async getTimers(query?: Record<string, any>): Promise<any[]> {
+    return this.request<any[]>('timer-get-all', query)
+  }
+
+  async createTimer(params: Record<string, any>): Promise<any> {
+    return this.request<any>('timer-create', params)
+  }
+
+  async updateTimer(timerId: string, updates: Record<string, any>): Promise<any> {
+    return this.request<any>('timer-update', { timerId, updates })
+  }
+
+  async deleteTimer(timerId: string): Promise<boolean> {
+    return this.request<boolean>('timer-delete', timerId)
+  }
+
+  async toggleTimer(timerId: string): Promise<any> {
+    return this.request<any>('timer-toggle', timerId)
+  }
+
+  async triggerTimer(timerId: string): Promise<boolean> {
+    return this.request<boolean>('timer-trigger', timerId)
+  }
+
+  async getTimerStats(): Promise<Record<string, number>> {
+    return this.request<Record<string, number>>('timer-get-stats')
+  }
+
   // ==================== 系统方法 ====================
 
   async openExternal(url: string): Promise<void> {
