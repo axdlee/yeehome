@@ -133,6 +133,7 @@ export interface UpdateTimerParams {
   trigger?: TimerTrigger
   action?: TimerActionConfig
   status?: TimerStatus
+  nextTriggerAt?: string | null
   tags?: string[]
 }
 

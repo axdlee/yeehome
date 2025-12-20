@@ -60,6 +60,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/timers',
+    name: 'Timers',
+    component: () => import('@/renderer/views/TimersView.vue'),
+    meta: {
+      title: '定时任务',
+      icon: 'Clock'
+    }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/renderer/views/SettingsView.vue'),

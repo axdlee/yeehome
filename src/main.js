@@ -10,6 +10,7 @@ const SyncManager = require('./services/SyncManager')
 const EventManager = require('./services/core/EventManager')
 const LogSanitizer = require('./services/security/LogSanitizer')
 const ErrorHandler = require('./middleware/ErrorHandler')
+const TimerManager = require('./services/timer/TimerManager')
 const IPC = require('./main/ipc-channels')
 
 // 创建全局 EventManager 实例
@@ -97,6 +98,9 @@ const syncManager = new SyncManager(
   cloudSceneManager,
   cloudAutomationManager
 )
+
+// 创建定时管理器实例
+const timerManager = new TimerManager()
 
 // 监听云设备管理器事件
 forwardEventToRenderer(
@@ -224,6 +228,107 @@ forwardEventToRenderer(
   (deviceId, scenes) => `主进程接收到设备情景列表: ${deviceId}`
 );
 
+// 监听定时器管理器事件
+forwardEventToRenderer(
+  timerManager,
+  'timerCreated',
+  IPC.Events.TIMER_CREATED,
+  (timer) => `主进程接收到定时任务创建事件: ${timer.name}`
+);
+
+forwardEventToRenderer(
+  timerManager,
+  'timerUpdated',
+  IPC.Events.TIMER_UPDATED,
+  (timer) => `主进程接收到定时任务更新事件: ${timer.name}`
+);
+
+forwardEventToRenderer(
+  timerManager,
+  'timerDeleted',
+  IPC.Events.TIMER_DELETED,
+  (timerId) => `主进程接收到定时任务删除事件: ${timerId}`
+);
+
+forwardEventToRenderer(
+  timerManager,
+  'timerTriggered',
+  IPC.Events.TIMER_TRIGGERED,
+  (data) => `主进程接收到定时任务触发事件: ${data.timerName}`
+);
+
+// 处理定时任务触发后的设备控制
+eventManager.on(timerManager, 'timerTriggered', async (data) => {
+  console.log(`定时任务触发: ${data.timerName}`, data.action)
+
+  const { action } = data
+  const targetId = action.targetId
+  const isLocal = targetId.startsWith('local:')
+  const isCloud = targetId.startsWith('cloud:')
+  const deviceId = targetId.replace(/^(local|cloud):/, '')
+
+  try {
+    let result = false
+
+    switch (action.type) {
+      case 'on':
+        result = isCloud
+          ? await cloudDeviceManager.togglePower(deviceId, true)
+          : yeelightService.togglePower(deviceId, true)
+        break
+
+      case 'off':
+        result = isCloud
+          ? await cloudDeviceManager.togglePower(deviceId, false)
+          : yeelightService.togglePower(deviceId, false)
+        break
+
+      case 'toggle':
+        result = isCloud
+          ? await cloudDeviceManager.togglePower(deviceId)
+          : yeelightService.toggle(deviceId)
+        break
+
+      case 'brightness':
+        if (action.params?.brightness) {
+          result = isCloud
+            ? await cloudDeviceManager.setBrightness(deviceId, action.params.brightness)
+            : yeelightService.setBrightness(deviceId, action.params.brightness)
+        }
+        break
+
+      case 'ct':
+        if (action.params?.colorTemp) {
+          result = isCloud
+            ? await cloudDeviceManager.setColorTemperature(deviceId, action.params.colorTemp)
+            : yeelightService.setColorTemperature(deviceId, action.params.colorTemp)
+        }
+        break
+
+      case 'color':
+        if (action.params?.rgb) {
+          result = isCloud
+            ? await cloudDeviceManager.setColor(deviceId, action.params.rgb)
+            : yeelightService.setColor(deviceId, action.params.rgb)
+        }
+        break
+
+      case 'scene':
+        if (action.params?.sceneId) {
+          result = await cloudSceneManager.executeScene(action.params.sceneId)
+        }
+        break
+
+      default:
+        console.warn(`未知的定时任务动作类型: ${action.type}`)
+    }
+
+    console.log(`定时任务执行结果: ${result}`)
+  } catch (error) {
+    console.error(`定时任务执行失败:`, error)
+  }
+})
+
 // 创建窗口时添加关闭事件监听
 function createWindow () {
   // 创建浏览器窗口
@@ -309,6 +414,12 @@ app.on('before-quit', () => {
     oauthServer.close(() => {
       console.log('OAuth回调服务器已关闭')
     })
+  }
+
+  // 关闭定时任务检查
+  if (timerManager) {
+    console.log('清理定时任务管理器...')
+    timerManager.cleanup()
   }
 
   console.log('资源清理完成')
@@ -628,6 +739,57 @@ registerIPCHandler(IPC.Sync.SET_CONFIG, async (event, config) => {
 
 registerIPCHandler(IPC.Sync.GET_CONFIG, async () => {
   const result = syncManager.getSyncConfig()
+  return { success: true, data: result }
+})
+
+// 定时器相关
+registerIPCHandler(IPC.Timer.GET_ALL, async (event, query) => {
+  const result = timerManager.getTimers(query)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.GET_ONE, async (event, timerId) => {
+  const result = timerManager.getTimer(timerId)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.CREATE, async (event, params) => {
+  const result = timerManager.createTimer(params)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.UPDATE, async (event, timerId, updates) => {
+  const result = timerManager.updateTimer(timerId, updates)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.DELETE, async (event, timerId) => {
+  const result = timerManager.deleteTimer(timerId)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.ENABLE, async (event, timerId) => {
+  const result = timerManager.setTimerEnabled(timerId, true)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.DISABLE, async (event, timerId) => {
+  const result = timerManager.setTimerEnabled(timerId, false)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.TRIGGER, async (event, timerId) => {
+  const result = timerManager.triggerTimer(timerId)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.GET_STATS, async () => {
+  const result = timerManager.getStats()
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.Timer.GET_UPCOMING, async (event, limit) => {
+  const result = timerManager.getUpcomingTimers(limit)
   return { success: true, data: result }
 })
 

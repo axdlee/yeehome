@@ -87,6 +87,20 @@ const System = {
   GET_APP_VERSION: 'get-app-version'
 }
 
+// 定时器相关
+const Timer = {
+  GET_ALL: 'timer-get-all',
+  GET_ONE: 'timer-get',
+  CREATE: 'timer-create',
+  UPDATE: 'timer-update',
+  DELETE: 'timer-delete',
+  ENABLE: 'timer-enable',
+  DISABLE: 'timer-disable',
+  TRIGGER: 'timer-trigger',
+  GET_STATS: 'timer-get-stats',
+  GET_UPCOMING: 'timer-get-upcoming'
+}
+
 // 事件通道 (用于渲染进程 -> 主进程的单向通知)
 const Events = {
   DEVICE_ADDED: 'device-added',
@@ -106,7 +120,11 @@ const Events = {
   CLOUD_AUTHENTICATED: 'cloud-authenticated',
   CLOUD_TOKEN_REFRESHED: 'cloud-token-refped',
   CLOUD_LOGOUT: 'cloud-logout',
-  OAUTH_CALLBACK: 'oauth-callback'
+  OAUTH_CALLBACK: 'oauth-callback',
+  TIMER_CREATED: 'timer-created',
+  TIMER_UPDATED: 'timer-updated',
+  TIMER_DELETED: 'timer-deleted',
+  TIMER_TRIGGERED: 'timer-triggered'
 }
 
 module.exports = {
@@ -119,5 +137,6 @@ module.exports = {
   CloudAutomation,
   Sync,
   System,
+  Timer,
   Events
 }

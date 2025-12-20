@@ -7,6 +7,7 @@ import type { Room } from '@/renderer/types/room'
 import type { Scene } from '@/renderer/types/scene'
 import type { Group } from '@/renderer/types/group'
 import type { Automation } from '@/renderer/types/automation'
+import type { Timer } from '@/renderer/types/timer'
 
 // 定义window.electron类型
 declare global {
@@ -80,6 +81,11 @@ interface EventCallbacks {
   cloudLogout?: () => void
   // OAuth回调事件
   oauthCallback?: (code: string) => void
+  // 定时器事件
+  timerCreated?: (timer: Timer) => void
+  timerUpdated?: (timer: Timer) => void
+  timerDeleted?: (timerId: string) => void
+  timerTriggered?: (data: { timerId: string; timerName: string }) => void
 }
 
 // 事件名映射
@@ -101,7 +107,11 @@ const eventMap: Record<string, keyof EventCallbacks> = {
   'cloud-authenticated': 'cloudAuthenticated',
   'cloud-token-refreshed': 'cloudTokenRefreshed',
   'cloud-logout': 'cloudLogout',
-  'oauth-callback': 'oauthCallback'
+  'oauth-callback': 'oauthCallback',
+  'timer-created': 'timerCreated',
+  'timer-updated': 'timerUpdated',
+  'timer-deleted': 'timerDeleted',
+  'timer-triggered': 'timerTriggered'
 }
 
 class IPCService {
