@@ -70,15 +70,21 @@ export const useDeviceStore = defineStore('device', () => {
 
   // 发现/同步设备
   async function discoverDevices(): Promise<void> {
-    if (isDiscovering.value) return
+    if (isDiscovering.value) {
+      console.log('[DeviceStore] 正在发现中，跳过')
+      return
+    }
 
+    console.log('[DeviceStore] 开始发现设备，来源:', deviceSource.value)
     isDiscovering.value = true
     try {
       if (deviceSource.value === 'local') {
         // 本地发现
+        console.log('[DeviceStore] 调用本地设备发现...')
         await ipcService.discoverDevices()
         // 等待发现完成事件，先获取已有设备
         const localDevices = await ipcService.getDevices()
+        console.log('[DeviceStore] 本地设备数量:', localDevices.length)
         devices.value = localDevices.map(d => ({
           ...d,
           source: 'local' as DeviceSource,
@@ -86,7 +92,9 @@ export const useDeviceStore = defineStore('device', () => {
         }))
       } else {
         // 云端同步
+        console.log('[DeviceStore] 调用云端设备同步...')
         const cloudDevices = await ipcService.cloudSyncDevices()
+        console.log('[DeviceStore] 云端设备数量:', cloudDevices.length)
         devices.value = cloudDevices.map(d => ({
           ...d,
           source: 'cloud' as DeviceSource
@@ -95,10 +103,11 @@ export const useDeviceStore = defineStore('device', () => {
       lastSyncTime.value = new Date()
       ElMessage.success(`发现 ${devices.value.length} 个设备`)
     } catch (error) {
-      console.error('设备发现失败:', error)
+      console.error('[DeviceStore] 设备发现失败:', error)
       ElMessage.error('设备发现失败，请重试')
     } finally {
       isDiscovering.value = false
+      console.log('[DeviceStore] 发现完成，isDiscovering:', isDiscovering.value)
     }
   }
 

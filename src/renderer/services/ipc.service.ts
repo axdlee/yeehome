@@ -137,6 +137,9 @@ class IPCService {
    * 添加 30 秒超时保护，防止请求永久挂起导致页面冻结
    */
   private async request<T>(channel: string, ...args: any[]): Promise<T> {
+    console.log(`[IPC] 调用: ${channel}`, args)
+    const startTime = Date.now()
+
     if (!this.ipcRenderer) {
       console.warn(`[IPC] ipcRenderer 未定义，无法调用 ${channel}。当前可能在浏览器环境中运行。`)
       // 根据不同的通道返回合适的默认值
@@ -163,16 +166,26 @@ class IPCService {
     })
 
     // 使用 Promise.race 实现超时
-    const response: IPCResponse<T> = await Promise.race([
-      this.ipcRenderer.invoke(channel, ...args),
-      timeoutPromise
-    ])
+    try {
+      const response: IPCResponse<T> = await Promise.race([
+        this.ipcRenderer.invoke(channel, ...args),
+        timeoutPromise
+      ])
 
-    if (!response.success) {
-      throw new IPCError(response.error)
+      const duration = Date.now() - startTime
+      console.log(`[IPC] 完成: ${channel} (耗时 ${duration}ms)`, response.success ? '成功' : '失败')
+
+      if (!response.success) {
+        console.error(`[IPC] 错误响应:`, response.error)
+        throw new IPCError(response.error)
+      }
+
+      return response.data as T
+    } catch (error) {
+      const duration = Date.now() - startTime
+      console.error(`[IPC] 异常: ${channel} (耗时 ${duration}ms)`, error)
+      throw error
     }
-
-    return response.data as T
   }
 
   // 注册全局事件监听器

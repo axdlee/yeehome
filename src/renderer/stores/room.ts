@@ -23,15 +23,19 @@ export const useRoomStore = defineStore('room', () => {
 
   // 同步房间列表
   async function syncRooms(): Promise<void> {
+    console.log('[RoomStore] 开始同步房间...')
     isLoading.value = true
     try {
+      console.log('[RoomStore] 调用 cloudSyncRooms()...')
       const cloudRooms = await ipcService.cloudSyncRooms()
+      console.log('[RoomStore] 同步成功，房间数量:', cloudRooms.length)
       rooms.value = cloudRooms
     } catch (error) {
-      console.error('同步房间失败:', error)
+      console.error('[RoomStore] 同步房间失败:', error)
       ElMessage.error('同步房间失败')
     } finally {
       isLoading.value = false
+      console.log('[RoomStore] 同步完成，isLoading:', isLoading.value)
     }
   }
 
