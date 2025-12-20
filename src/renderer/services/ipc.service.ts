@@ -134,16 +134,18 @@ class IPCService {
   /**
    * 统一的 IPC 请求方法
    * 处理响应格式并在错误时抛出 IPCError
+   * 添加 30 秒超时保护，防止请求永久挂起导致页面冻结
    */
   private async request<T>(channel: string, ...args: any[]): Promise<T> {
     if (!this.ipcRenderer) {
       console.warn(`[IPC] ipcRenderer 未定义，无法调用 ${channel}。当前可能在浏览器环境中运行。`)
       // 根据不同的通道返回合适的默认值
-      if (channel.includes('get-devices') || 
-          channel.includes('sync-devices') || 
-          channel.includes('get-rooms') || 
-          channel.includes('get-groups') || 
-          channel.includes('get-scenes') || 
+      if (channel.includes('get-devices') ||
+          channel.includes('sync-devices') ||
+          channel.includes('get-rooms') ||
+          channel.includes('sync-rooms') ||
+          channel.includes('get-groups') ||
+          channel.includes('get-scenes') ||
           channel.includes('get-automations') ||
           channel.includes('timer-get-all')) {
         // 返回空数组
@@ -152,8 +154,19 @@ class IPCService {
       // 返回空对象
       return {} as T
     }
-    
-    const response: IPCResponse<T> = await this.ipcRenderer.invoke(channel, ...args)
+
+    // 创建超时 Promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new IPCError({ code: 'IPC_TIMEOUT', message: `IPC 请求超时: ${channel}` }))
+      }, 30000) // 30 秒超时
+    })
+
+    // 使用 Promise.race 实现超时
+    const response: IPCResponse<T> = await Promise.race([
+      this.ipcRenderer.invoke(channel, ...args),
+      timeoutPromise
+    ])
 
     if (!response.success) {
       throw new IPCError(response.error)

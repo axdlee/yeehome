@@ -18,22 +18,30 @@ class CloudRoomManager extends EventEmitter {
     if (!this.cloudService.isAuthenticated()) {
       throw new Error('CloudRoomManager: 未认证，无法同步房间');
     }
-    
+
+    console.log('CloudRoomManager: 开始同步房间...');
+    console.log('CloudRoomManager: apiBaseUrl =', this.cloudService.apiBaseUrl);
+
     try {
       // 目前Yeelight IoT开放平台的房间信息是通过设备列表返回的，设备中包含房间信息
       // 后续如果有单独的房间API，可以直接调用
+      console.log('CloudRoomManager: 调用 discoverDevices()...');
       const response = await this.cloudService.discoverDevices();
+      console.log('CloudRoomManager: discoverDevices() 返回');
+
       const devices = this.cloudService.parseDevicesResponse(response);
-      
+
+      console.log(`CloudRoomManager: 解析到 ${devices.length} 个设备`);
+
       // 从设备中提取房间信息
       const roomsMap = new Map();
-      
+
       devices.forEach(device => {
         // 假设设备中包含roomId和roomName字段
         // 如果设备中没有直接的房间信息，需要根据设备ID或其他信息关联
         const roomId = device.roomId || 'default';
         const roomName = device.roomName || '默认房间';
-        
+
         if (!roomsMap.has(roomId)) {
           roomsMap.set(roomId, {
             id: roomId,
