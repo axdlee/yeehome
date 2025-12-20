@@ -8,7 +8,7 @@
     "scope": "read write"
   },
   "cloudService": {
-    "apiBaseUrl": "",
+    "apiBaseUrl": "https://api.yeelight.com",
     "autoSync": true,
     "syncInterval": 1800000
   },
