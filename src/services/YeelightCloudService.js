@@ -33,8 +33,13 @@ class YeelightCloudService extends EventEmitter {
     // 选择认证方式：'jwt' 或 'oauth'
     this.authMode = 'jwt'; // 默认使用 JWT 认证
 
-    // 从配置中获取 API 基础 URL
-    this.apiBaseUrl = this.configManager.getConfig('cloudService.apiBaseUrl', 'https://api.yeelight.com');
+    // 从配置中获取 API 基础 URL，如果为空则使用默认值
+    const configuredUrl = this.configManager.getConfig('cloudService.apiBaseUrl', '');
+    this.apiBaseUrl = configuredUrl && configuredUrl.trim() !== ''
+      ? configuredUrl
+      : 'https://app.yeelight.com/v1/smartHome/fulfillment';
+
+    console.log('YeelightCloudService: apiBaseUrl =', this.apiBaseUrl);
 
     this.httpClient = axios.create({
       timeout: 30000,
@@ -153,7 +158,7 @@ class YeelightCloudService extends EventEmitter {
    */
   setApiBaseUrl(url) {
     // 确保 URL 有效，如果为空则使用默认值
-    this.apiBaseUrl = url && url.trim() !== '' ? url : 'https://api.yeelight.com';
+    this.apiBaseUrl = url && url.trim() !== '' ? url : 'https://app.yeelight.com/v1/smartHome/fulfillment';
   }
 
   /**
@@ -243,7 +248,7 @@ class YeelightCloudService extends EventEmitter {
     // 确保 apiBaseUrl 有效，提供默认值保护
     const validApiBaseUrl = this.apiBaseUrl && this.apiBaseUrl.trim() !== ''
       ? this.apiBaseUrl
-      : 'https://api.yeelight.com';
+      : 'https://app.yeelight.com/v1/smartHome/fulfillment';
 
     const url = `${validApiBaseUrl}${endpoint}`;
     const config = {

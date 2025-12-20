@@ -77,7 +77,7 @@ class ConfigManager {
       },
       // 云服务配置
       cloudService: {
-        apiBaseUrl: '',
+        apiBaseUrl: 'https://app.yeelight.com/v1/smartHome/fulfillment',
         autoSync: true,
         syncInterval: 30 * 60 * 1000 // 30分钟
       },
