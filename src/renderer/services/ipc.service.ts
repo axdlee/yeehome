@@ -86,6 +86,9 @@ interface EventCallbacks {
   timerUpdated?: (timer: Timer) => void
   timerDeleted?: (timerId: string) => void
   timerTriggered?: (data: { timerId: string; timerName: string }) => void
+  // AI推荐事件
+  aiRecommendationsGenerated?: (data: any) => void
+  aiSceneApplied?: (sceneId: string, sceneName: string) => void
 }
 
 // 事件名映射
@@ -111,7 +114,10 @@ const eventMap: Record<string, keyof EventCallbacks> = {
   'timer-created': 'timerCreated',
   'timer-updated': 'timerUpdated',
   'timer-deleted': 'timerDeleted',
-  'timer-triggered': 'timerTriggered'
+  'timer-triggered': 'timerTriggered',
+  // AI推荐事件
+  'ai-recommendations-generated': 'aiRecommendationsGenerated',
+  'ai-scene-applied': 'aiSceneApplied'
 }
 
 class IPCService {

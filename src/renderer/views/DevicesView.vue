@@ -28,84 +28,95 @@
       </div>
     </div>
 
-    <!-- 操作栏 -->
-    <div class="action-bar">
-      <!-- 设备源切换 -->
-      <DeviceSourceTabs
-        v-model="currentSource"
-        :is-authenticated="authStore.isAuthenticated"
-        @change="handleSourceChange"
-      />
+    <!-- 主内容区域 -->
+    <div class="main-content">
+      <!-- 左侧：设备列表 -->
+      <div class="device-section">
+        <!-- 操作栏 -->
+        <div class="action-bar">
+          <!-- 设备源切换 -->
+          <DeviceSourceTabs
+            v-model="currentSource"
+            :is-authenticated="authStore.isAuthenticated"
+            @change="handleSourceChange"
+          />
 
-      <!-- 搜索和筛选 -->
-      <div class="filter-area">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索设备名称、型号..."
-          :prefix-icon="Search"
-          clearable
-          class="search-input"
-          @input="handleSearch"
-        />
-        <el-select
-          v-model="filterType"
-          placeholder="设备类型"
-          clearable
-          class="type-filter"
-          @change="handleFilterChange"
+          <!-- 搜索和筛选 -->
+          <div class="filter-area">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索设备名称、型号..."
+              :prefix-icon="Search"
+              clearable
+              class="search-input"
+              @input="handleSearch"
+            />
+            <el-select
+              v-model="filterType"
+              placeholder="设备类型"
+              clearable
+              class="type-filter"
+              @change="handleFilterChange"
+            >
+              <el-option label="单色灯" value="mono" />
+              <el-option label="彩色灯" value="color" />
+              <el-option label="灯带" value="stripe" />
+              <el-option label="吸顶灯" value="ceiling" />
+              <el-option label="床头灯" value="bslamp" />
+            </el-select>
+            <el-select
+              v-model="filterPower"
+              placeholder="电源状态"
+              clearable
+              class="power-filter"
+              @change="handleFilterChange"
+            >
+              <el-option label="已开启" value="on" />
+              <el-option label="已关闭" value="off" />
+            </el-select>
+          </div>
+        </div>
+
+        <!-- 云端未登录提示 -->
+        <el-alert
+          v-if="currentSource === 'cloud' && !authStore.isAuthenticated"
+          title="请先登录云端账号"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="auth-alert"
         >
-          <el-option label="单色灯" value="mono" />
-          <el-option label="彩色灯" value="color" />
-          <el-option label="灯带" value="stripe" />
-          <el-option label="吸顶灯" value="ceiling" />
-          <el-option label="床头灯" value="bslamp" />
-        </el-select>
-        <el-select
-          v-model="filterPower"
-          placeholder="电源状态"
-          clearable
-          class="power-filter"
-          @change="handleFilterChange"
-        >
-          <el-option label="已开启" value="on" />
-          <el-option label="已关闭" value="off" />
-        </el-select>
+          <template #default>
+            <span>云端设备需要登录 Yeelight 账号才能访问。</span>
+            <el-button type="primary" link @click="navigateToSettings">
+              前往设置登录
+            </el-button>
+          </template>
+        </el-alert>
+
+        <!-- 设备网格 -->
+        <div class="device-content" v-loading="deviceStore.isDiscovering">
+          <DeviceGrid
+            :devices="deviceStore.filteredDevices"
+            :empty-text="emptyText"
+            :show-refresh-button="!deviceStore.isDiscovering"
+            @device-click="handleDeviceClick"
+            @power-change="handlePowerChange"
+            @refresh="handleRefresh"
+          />
+        </div>
+
+        <!-- 最后同步时间 -->
+        <div class="sync-info" v-if="deviceStore.lastSyncTime">
+          <el-icon><Clock /></el-icon>
+          <span>最后同步: {{ formatLastSyncTime }}</span>
+        </div>
       </div>
-    </div>
 
-    <!-- 云端未登录提示 -->
-    <el-alert
-      v-if="currentSource === 'cloud' && !authStore.isAuthenticated"
-      title="请先登录云端账号"
-      type="warning"
-      show-icon
-      :closable="false"
-      class="auth-alert"
-    >
-      <template #default>
-        <span>云端设备需要登录 Yeelight 账号才能访问。</span>
-        <el-button type="primary" link @click="navigateToSettings">
-          前往设置登录
-        </el-button>
-      </template>
-    </el-alert>
-
-    <!-- 设备网格 -->
-    <div class="device-content" v-loading="deviceStore.isDiscovering">
-      <DeviceGrid
-        :devices="deviceStore.filteredDevices"
-        :empty-text="emptyText"
-        :show-refresh-button="!deviceStore.isDiscovering"
-        @device-click="handleDeviceClick"
-        @power-change="handlePowerChange"
-        @refresh="handleRefresh"
-      />
-    </div>
-
-    <!-- 最后同步时间 -->
-    <div class="sync-info" v-if="deviceStore.lastSyncTime">
-      <el-icon><Clock /></el-icon>
-      <span>最后同步: {{ formatLastSyncTime }}</span>
+      <!-- 右侧：AI智能推荐 -->
+      <div class="ai-section">
+        <AIRecommendationPanel />
+      </div>
     </div>
   </div>
 </template>
@@ -119,6 +130,7 @@ import { useAuthStore } from '@/renderer/stores/auth'
 import type { Device, DeviceSource, PowerState } from '@/renderer/types/device'
 import DeviceSourceTabs from '@/renderer/components/device/DeviceSourceTabs.vue'
 import DeviceGrid from '@/renderer/components/device/DeviceGrid.vue'
+import AIRecommendationPanel from '@/renderer/components/ai/AIRecommendationPanel.vue'
 
 const router = useRouter()
 const deviceStore = useDeviceStore()
@@ -263,6 +275,26 @@ onUnmounted(() => {
   gap: var(--spacing-sm);
 }
 
+// 主内容区域 - 左右布局
+.main-content {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex: 1;
+  min-height: 0;
+}
+
+.device-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ai-section {
+  width: 360px;
+  flex-shrink: 0;
+}
+
 .action-bar {
   display: flex;
   justify-content: space-between;
@@ -304,6 +336,7 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  margin-top: var(--spacing-md);
 }
 
 .sync-info {
@@ -317,6 +350,17 @@ onUnmounted(() => {
 }
 
 // 响应式布局
+@media (max-width: 1200px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .ai-section {
+    width: 100%;
+    flex-shrink: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .action-bar {
     flex-direction: column;

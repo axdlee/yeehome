@@ -259,6 +259,21 @@ forwardEventToRenderer(
   'timerTriggered',
   IPC.Events.TIMER_TRIGGERED,
   (data) => `主进程接收到定时任务触发事件: ${data.timerName}`
+)
+
+// 监听AI场景推荐器事件
+forwardEventToRenderer(
+  sceneRecommender,
+  'recommendationsGenerated',
+  IPC.Events.AI_RECOMMENDATIONS_GENERATED,
+  (recommendations) => `主进程接收到AI推荐生成事件: ${recommendations.length}个推荐`
+)
+
+forwardEventToRenderer(
+  sceneRecommender,
+  'sceneApplied',
+  IPC.Events.AI_SCENE_APPLIED,
+  (sceneId, sceneName) => `主进程接收到AI情景应用事件: ${sceneName}`
 );
 
 // 处理定时任务触发后的设备控制
@@ -424,6 +439,12 @@ app.on('before-quit', () => {
   if (timerManager) {
     console.log('清理定时任务管理器...')
     timerManager.cleanup()
+  }
+
+  // 关闭AI场景推荐器
+  if (sceneRecommender) {
+    console.log('清理AI场景推荐器...')
+    sceneRecommender.cleanup()
   }
 
   console.log('资源清理完成')
@@ -795,5 +816,52 @@ registerIPCHandler(IPC.Timer.GET_STATS, async () => {
 registerIPCHandler(IPC.Timer.GET_UPCOMING, async (event, limit) => {
   const result = timerManager.getUpcomingTimers(limit)
   return { success: true, data: result }
+})
+
+// AI场景推荐相关
+registerIPCHandler(IPC.AIRecommendation.GET_RECOMMENDATIONS, async (event, options) => {
+  const devices = yeelightService.getDevices()
+  const result = sceneRecommender.generateRecommendations(devices, options)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.AIRecommendation.GET_SCENES, async () => {
+  const scenes = sceneRecommender.getAllScenes()
+  return { success: true, data: { scenes } }
+})
+
+registerIPCHandler(IPC.AIRecommendation.APPLY_SCENE, async (event, sceneId) => {
+  const result = sceneRecommender.applyScene(sceneId)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.AIRecommendation.RECORD_FEEDBACK, async (event, sceneId, feedback) => {
+  sceneRecommender.recordFeedback(sceneId, feedback)
+  return { success: true }
+})
+
+registerIPCHandler(IPC.AIRecommendation.CREATE_CUSTOM_SCENE, async (event, sceneData) => {
+  const result = sceneRecommender.createCustomScene(sceneData)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.AIRecommendation.UPDATE_SCENE, async (event, sceneId, updates) => {
+  const result = sceneRecommender.updateScene(sceneId, updates)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.AIRecommendation.DELETE_SCENE, async (event, sceneId) => {
+  const result = sceneRecommender.deleteScene(sceneId)
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.AIRecommendation.GET_USAGE_STATS, async () => {
+  const result = sceneRecommender.getUsageStats()
+  return { success: true, data: result }
+})
+
+registerIPCHandler(IPC.AIRecommendation.UPDATE_PREFERENCES, async (event, prefs) => {
+  sceneRecommender.updatePreferences(prefs)
+  return { success: true }
 })
 

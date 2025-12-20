@@ -137,7 +137,9 @@ const Events = {
   TIMER_CREATED: 'timer-created',
   TIMER_UPDATED: 'timer-updated',
   TIMER_DELETED: 'timer-deleted',
-  TIMER_TRIGGERED: 'timer-triggered'
+  TIMER_TRIGGERED: 'timer-triggered',
+  AI_RECOMMENDATIONS_GENERATED: 'ai-recommendations-generated',
+  AI_SCENE_APPLIED: 'ai-scene-applied'
 }
 
 module.exports = {
