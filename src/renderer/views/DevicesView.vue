@@ -216,10 +216,33 @@ watch(() => deviceStore.deviceSource, (newSource) => {
   currentSource.value = newSource
 })
 
+// 监听认证状态变化,登录成功后自动同步云端设备
+watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
+  // 只在认证状态从 false 变为 true 时触发,且当前是云端标签
+  if (isAuth && !wasAuth && currentSource.value === 'cloud') {
+    console.log('[DevicesView] 检测到登录成功,准备同步云端设备')
+    // 延迟500ms,等待后端自动同步完成
+    setTimeout(() => {
+      if (!deviceStore.isDiscovering) {
+        console.log('[DevicesView] 自动同步云端设备')
+        deviceStore.discoverDevices()
+      } else {
+        console.log('[DevicesView] 设备正在同步中,跳过')
+      }
+    }, 500)
+  }
+})
+
 // 生命周期
 onMounted(() => {
   deviceStore.setupEventListeners()
   // 初始加载设备
+  // 如果是云端标签且未登录,不自动加载
+  if (currentSource.value === 'cloud' && !authStore.isAuthenticated) {
+    console.log('[DevicesView] 云端标签但未登录,跳过自动加载')
+    return
+  }
+  // 如果设备列表为空,才自动加载
   if (deviceStore.devices.length === 0) {
     deviceStore.discoverDevices()
   }

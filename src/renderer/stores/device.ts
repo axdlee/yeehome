@@ -71,18 +71,19 @@ export const useDeviceStore = defineStore('device', () => {
   // 发现/同步设备
   async function discoverDevices(): Promise<void> {
     if (isDiscovering.value) {
-      console.log('[DeviceStore] 正在发现中，跳过')
+      console.log('[DeviceStore] 正在发现中,跳过')
       return
     }
 
-    console.log('[DeviceStore] 开始发现设备，来源:', deviceSource.value)
+    console.log('[DeviceStore] 开始发现设备,来源:', deviceSource.value)
     isDiscovering.value = true
+
     try {
       if (deviceSource.value === 'local') {
         // 本地发现
         console.log('[DeviceStore] 调用本地设备发现...')
         await ipcService.discoverDevices()
-        // 等待发现完成事件，先获取已有设备
+        // 等待发现完成事件,先获取已有设备
         const localDevices = await ipcService.getDevices()
         console.log('[DeviceStore] 本地设备数量:', localDevices.length)
         devices.value = localDevices.map(d => ({
@@ -93,21 +94,34 @@ export const useDeviceStore = defineStore('device', () => {
       } else {
         // 云端同步
         console.log('[DeviceStore] 调用云端设备同步...')
-        const cloudDevices = await ipcService.cloudSyncDevices()
-        console.log('[DeviceStore] 云端设备数量:', cloudDevices.length)
-        devices.value = cloudDevices.map(d => ({
-          ...d,
-          source: 'cloud' as DeviceSource
-        }))
+        try {
+          const cloudDevices = await ipcService.cloudSyncDevices()
+          console.log('[DeviceStore] 云端设备数量:', cloudDevices.length)
+          devices.value = cloudDevices.map(d => ({
+            ...d,
+            source: 'cloud' as DeviceSource
+          }))
+        } catch (error: any) {
+          console.error('[DeviceStore] 云端设备同步失败:', error)
+          // 如果是未认证错误,不显示错误提示
+          if (error.code !== 'AUTH_ERROR' && error.message !== 'Not authenticated') {
+            ElMessage.error('云端设备同步失败,请重试')
+          }
+          throw error
+        }
       }
       lastSyncTime.value = new Date()
       ElMessage.success(`发现 ${devices.value.length} 个设备`)
     } catch (error) {
       console.error('[DeviceStore] 设备发现失败:', error)
-      ElMessage.error('设备发现失败，请重试')
+      // 只在非认证错误时显示提示
+      if (error instanceof Error && error.message !== 'Not authenticated') {
+        ElMessage.error('设备发现失败,请重试')
+      }
+      throw error
     } finally {
       isDiscovering.value = false
-      console.log('[DeviceStore] 发现完成，isDiscovering:', isDiscovering.value)
+      console.log('[DeviceStore] 发现完成,isDiscovering:', isDiscovering.value)
     }
   }
 
@@ -274,11 +288,15 @@ export const useDeviceStore = defineStore('device', () => {
 
     // 云设备同步完成
     ipcService.on('cloudDevicesSynced', (cloudDevices: Device[]) => {
+      console.log('[DeviceStore] 收到云端设备同步完成事件,设备数:', cloudDevices.length)
       if (deviceSource.value === 'cloud') {
         devices.value = cloudDevices.map(d => ({
           ...d,
           source: 'cloud' as DeviceSource
         }))
+        // 同步完成后更新状态
+        isDiscovering.value = false
+        lastSyncTime.value = new Date()
       }
     })
 
