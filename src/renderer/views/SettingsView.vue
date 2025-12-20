@@ -170,6 +170,54 @@
       </div>
     </el-card>
   </div>
+
+  <!-- 登录对话框 -->
+  <el-dialog
+    v-model="loginDialogVisible"
+    title="登录 Yeelight"
+    width="400px"
+    :close-on-click-modal="false"
+    destroy-on-close
+  >
+    <el-form
+      ref="loginFormRef"
+      :model="loginForm"
+      :rules="loginRules"
+      label-width="80px"
+      @submit.prevent="handleLoginSubmit"
+    >
+      <el-form-item label="用户名" prop="username">
+        <el-input
+          v-model="loginForm.username"
+          placeholder="请输入用户名"
+          prefix-icon="User"
+          clearable
+          @keydown.enter="$refs.passwordInput?.focus()"
+        />
+      </el-form-item>
+      <el-form-item label="密码" prop="password">
+        <el-input
+          ref="passwordInput"
+          v-model="loginForm.password"
+          type="password"
+          placeholder="请输入密码"
+          prefix-icon="Lock"
+          show-password
+          @keydown.enter="handleLoginSubmit"
+        />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="handleLoginCancel">取消</el-button>
+      <el-button
+        type="primary"
+        :loading="authStore.isAuthenticating"
+        @click="handleLoginSubmit"
+      >
+        登录
+      </el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -187,7 +235,7 @@ import {
 import { useAuthStore } from '@/renderer/stores/auth'
 import { useUIStore, type Theme } from '@/renderer/stores/ui'
 import ipcService from '@/renderer/services/ipc.service'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 
 const authStore = useAuthStore()
 const uiStore = useUIStore()
@@ -198,38 +246,44 @@ const sidebarCollapsed = ref(uiStore.sidebarCollapsed)
 const autoDiscover = ref(true)
 const discoverTimeout = ref(10)
 
+// 登录对话框状态
+const loginDialogVisible = ref(false)
+const loginForm = ref({
+  username: '',
+  password: ''
+})
+const loginFormRef = ref<FormInstance>()
+
+// 表单验证规则
+const loginRules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
+  ]
+}
+
 // 方法
-const handleLogin = async () => {
-  try {
-    const { value: formData } = await ElMessageBox.prompt(
-      '请输入 Yeelight 账号信息',
-      '登录 Yeelight',
-      {
-        confirmButtonText: '登录',
-        cancelButtonText: '取消',
-        inputPattern: /\S+/,
-        inputErrorMessage: '请输入用户名',
-        inputType: 'text'
-      }
-    )
+const handleLogin = () => {
+  loginForm.value.username = ''
+  loginForm.value.password = ''
+  loginDialogVisible.value = true
+}
 
-    const username = formData.username || formData
-    const { value: password } = await ElMessageBox.prompt(
-      '请输入密码',
-      '登录 Yeelight',
-      {
-        confirmButtonText: '登录',
-        cancelButtonText: '取消',
-        inputType: 'password',
-        inputPattern: /\S+/,
-        inputErrorMessage: '请输入密码'
-      }
-    )
+const handleLoginSubmit = async () => {
+  if (!loginFormRef.value) return
 
-    await authStore.loginWithCredentials(username, password)
-  } catch {
-    // 用户取消
-  }
+  await loginFormRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    loginDialogVisible.value = false
+    await authStore.loginWithCredentials(loginForm.value.username, loginForm.value.password)
+  })
+}
+
+const handleLoginCancel = () => {
+  loginDialogVisible.value = false
 }
 
 const handleLogout = async () => {
