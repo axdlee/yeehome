@@ -10,6 +10,7 @@ const SyncManager = require('./services/SyncManager')
 const EventManager = require('./services/core/EventManager')
 const LogSanitizer = require('./services/security/LogSanitizer')
 const ErrorHandler = require('./middleware/ErrorHandler')
+const IPC = require('./main/ipc-channels')
 
 // 创建全局 EventManager 实例
 const eventManager = new EventManager()
@@ -161,7 +162,7 @@ forwardEventToRenderer(
 forwardEventToRenderer(
   cloudAutomationManager,
   'automationsSynced',
-  'cloud-automations-synced',
+  IPC.Events.CLOUD_AUTOMATIONS_SYNCED,
   (automations) => `主进程接收到云端自动化同步完成事件: ${automations.length}个自动化`
 );
 
@@ -169,21 +170,21 @@ forwardEventToRenderer(
 forwardEventToRenderer(
   cloudDeviceManager,
   'authenticated',
-  'cloud-authenticated',
+  IPC.Events.CLOUD_AUTHENTICATED,
   () => '主进程接收到云端认证成功事件'
 );
 
 forwardEventToRenderer(
   cloudDeviceManager,
   'tokenRefreshed',
-  'cloud-token-refreshed',
+  IPC.Events.CLOUD_TOKEN_REFRESHED,
   () => '主进程接收到云端token刷新成功事件'
 );
 
 forwardEventToRenderer(
   cloudDeviceManager,
   'logout',
-  'cloud-logout',
+  IPC.Events.CLOUD_LOGOUT,
   () => '主进程接收到云端登出事件'
 );
 
@@ -191,35 +192,35 @@ forwardEventToRenderer(
 forwardEventToRenderer(
   yeelightService,
   'deviceAdded',
-  'device-added',
+  IPC.Events.DEVICE_ADDED,
   (device) => `主进程接收到设备添加事件: ${device.id}`
 );
 
 forwardEventToRenderer(
   yeelightService,
   'discoverDone',
-  'discover-done',
+  IPC.Events.DISCOVER_DONE,
   (devices) => `主进程接收到设备发现完成事件: ${devices.length}个设备`
 );
 
 forwardEventToRenderer(
   yeelightService,
   'deviceUpdated',
-  'device-updated',
+  IPC.Events.DEVICE_UPDATED,
   (device) => `主进程接收到设备更新事件: ${device.id}`
 );
 
 forwardEventToRenderer(
   yeelightService,
   'sceneApplied',
-  'scene-applied',
+  IPC.Events.SCENE_APPLIED,
   (sceneId, actions) => `主进程接收到情景应用事件: ${sceneId}`
 );
 
 forwardEventToRenderer(
   yeelightService,
   'scenesReceived',
-  'scenes-received',
+  IPC.Events.SCENES_RECEIVED,
   (deviceId, scenes) => `主进程接收到设备情景列表: ${deviceId}`
 );
 
@@ -313,6 +314,9 @@ app.on('before-quit', () => {
   console.log('资源清理完成')
 })
 
+// OAuth回调服务器端口配置
+const OAUTH_SERVER_PORT = process.env.OAUTH_SERVER_PORT || 3001
+
 // 添加OAuth回调服务器
 let oauthServer = null
 
@@ -358,9 +362,18 @@ function initOAuthCallbackServer() {
     }
   })
 
-  // 启动服务器，监听3000端口
-  oauthServer.listen(3000, () => {
-    console.log('OAuth回调服务器已启动，监听端口3000')
+  // 启动服务器，监听配置端口
+  oauthServer.listen(OAUTH_SERVER_PORT, () => {
+    console.log(`OAuth回调服务器已启动，监听端口 ${OAUTH_SERVER_PORT}`)
+  })
+
+  // 处理端口冲突
+  oauthServer.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.warn(`端口 ${OAUTH_SERVER_PORT} 已被占用，OAuth 回调服务器启动失败`)
+    } else {
+      console.error('OAuth 服务器错误:', error)
+    }
   })
 }
 
@@ -380,56 +393,56 @@ function registerIPCHandler(channel, handler) {
 }
 
 // IPC事件处理 - 本地设备
-registerIPCHandler('discover-devices', async () => {
+registerIPCHandler(IPC.LocalDevice.DISCOVER, async () => {
   yeelightService.discoverDevices()
   return { success: true }
 })
 
-registerIPCHandler('get-devices', async () => {
+registerIPCHandler(IPC.LocalDevice.GET_DEVICES, async () => {
   return { success: true, data: yeelightService.getDevices() }
 })
 
-registerIPCHandler('toggle-power', async (event, deviceId, power) => {
+registerIPCHandler(IPC.LocalDevice.TOGGLE_POWER, async (event, deviceId, power) => {
   const result = yeelightService.togglePower(deviceId, power)
   return { success: true, data: result }
 })
 
-registerIPCHandler('set-brightness', async (event, deviceId, brightness) => {
+registerIPCHandler(IPC.LocalDevice.SET_BRIGHTNESS, async (event, deviceId, brightness) => {
   const result = yeelightService.setBrightness(deviceId, brightness)
   return { success: true, data: result }
 })
 
-registerIPCHandler('set-color-temperature', async (event, deviceId, colorTemperature) => {
+registerIPCHandler(IPC.LocalDevice.SET_COLOR_TEMP, async (event, deviceId, colorTemperature) => {
   const result = yeelightService.setColorTemperature(deviceId, colorTemperature)
   return { success: true, data: result }
 })
 
-registerIPCHandler('set-color', async (event, deviceId, rgb) => {
+registerIPCHandler(IPC.LocalDevice.SET_COLOR, async (event, deviceId, rgb) => {
   const result = yeelightService.setColor(deviceId, rgb)
   return { success: true, data: result }
 })
 
-registerIPCHandler('get-scenes-from-device', async (event, deviceId) => {
+registerIPCHandler(IPC.LocalDevice.GET_SCENES, async (event, deviceId) => {
   yeelightService.getScenesFromDevice(deviceId)
   return { success: true }
 })
 
-registerIPCHandler('get-groups-from-device', async (event, deviceId) => {
+registerIPCHandler(IPC.LocalDevice.GET_GROUPS, async (event, deviceId) => {
   yeelightService.getGroupsFromDevice(deviceId)
   return { success: true }
 })
 
-registerIPCHandler('toggle-device', async (event, deviceId) => {
+registerIPCHandler(IPC.LocalDevice.TOGGLE_DEVICE, async (event, deviceId) => {
   const result = yeelightService.toggle(deviceId)
   return { success: true, data: result }
 })
 
-registerIPCHandler('set-scene', async (event, deviceId, sceneType, params) => {
+registerIPCHandler(IPC.LocalDevice.SET_SCENE, async (event, deviceId, sceneType, params) => {
   const result = yeelightService.setScene(deviceId, sceneType, params)
   return { success: true, data: result }
 })
 
-registerIPCHandler('set-default', async (event, deviceId) => {
+registerIPCHandler(IPC.LocalDevice.SET_DEFAULT, async (event, deviceId) => {
   const result = yeelightService.setDefault(deviceId)
   return { success: true, data: result }
 })
@@ -437,183 +450,183 @@ registerIPCHandler('set-default', async (event, deviceId) => {
 // 云服务相关的IPC事件处理
 
 // 认证相关
-registerIPCHandler('cloud-get-authorization-url', async (event, state) => {
+registerIPCHandler(IPC.CloudAuth.GET_AUTH_URL, async (event, state) => {
   const result = await cloudDeviceManager.getAuthorizationUrl(state)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-access-token', async (event, code) => {
+registerIPCHandler(IPC.CloudAuth.GET_ACCESS_TOKEN, async (event, code) => {
   const result = await cloudDeviceManager.getAccessToken(code)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-is-authenticated', async () => {
+registerIPCHandler(IPC.CloudAuth.IS_AUTHENTICATED, async () => {
   const result = cloudDeviceManager.isAuthenticated()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-auth-status', async () => {
+registerIPCHandler(IPC.CloudAuth.GET_AUTH_STATUS, async () => {
   const result = cloudDeviceManager.getAuthStatus()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-logout', async () => {
+registerIPCHandler(IPC.CloudAuth.LOGOUT, async () => {
   await cloudDeviceManager.logout()
   return { success: true }
 })
 
 // 设备相关
-registerIPCHandler('cloud-sync-devices', async () => {
+registerIPCHandler(IPC.CloudDevice.SYNC, async () => {
   const result = await cloudDeviceManager.syncDevices()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-devices', async () => {
+registerIPCHandler(IPC.CloudDevice.GET_ALL, async () => {
   const result = cloudDeviceManager.getDevices()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-device', async (event, deviceId) => {
+registerIPCHandler(IPC.CloudDevice.GET_ONE, async (event, deviceId) => {
   const result = cloudDeviceManager.getDevice(deviceId)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-query-devices', async (event, deviceIds) => {
+registerIPCHandler(IPC.CloudDevice.QUERY, async (event, deviceIds) => {
   const result = await cloudDeviceManager.queryDevices(deviceIds)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-control-device', async (event, deviceId, executions) => {
+registerIPCHandler(IPC.CloudDevice.CONTROL, async (event, deviceId, executions) => {
   const result = await cloudDeviceManager.controlDevice(deviceId, executions)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-toggle-power', async (event, deviceId, power) => {
+registerIPCHandler(IPC.CloudDevice.TOGGLE_POWER, async (event, deviceId, power) => {
   const result = await cloudDeviceManager.togglePower(deviceId, power)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-set-brightness', async (event, deviceId, brightness) => {
+registerIPCHandler(IPC.CloudDevice.SET_BRIGHTNESS, async (event, deviceId, brightness) => {
   const result = await cloudDeviceManager.setBrightness(deviceId, brightness)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-set-color-temperature', async (event, deviceId, colorTemperature) => {
+registerIPCHandler(IPC.CloudDevice.SET_COLOR_TEMP, async (event, deviceId, colorTemperature) => {
   const result = await cloudDeviceManager.setColorTemperature(deviceId, colorTemperature)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-set-color', async (event, deviceId, rgb) => {
+registerIPCHandler(IPC.CloudDevice.SET_COLOR, async (event, deviceId, rgb) => {
   const result = await cloudDeviceManager.setColor(deviceId, rgb)
   return { success: true, data: result }
 })
 
 // 房间相关
-registerIPCHandler('cloud-sync-rooms', async () => {
+registerIPCHandler(IPC.CloudRoom.SYNC, async () => {
   const result = await cloudRoomManager.syncRooms()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-rooms', async () => {
+registerIPCHandler(IPC.CloudRoom.GET_ALL, async () => {
   const result = cloudRoomManager.getRooms()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-room', async (event, roomId) => {
+registerIPCHandler(IPC.CloudRoom.GET_ONE, async (event, roomId) => {
   const result = cloudRoomManager.getRoom(roomId)
   return { success: true, data: result }
 })
 
 // 分组相关
-registerIPCHandler('cloud-sync-groups', async () => {
+registerIPCHandler(IPC.CloudGroup.SYNC, async () => {
   const result = await cloudGroupManager.syncGroups()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-groups', async () => {
+registerIPCHandler(IPC.CloudGroup.GET_ALL, async () => {
   const result = cloudGroupManager.getGroups()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-group', async (event, groupId) => {
+registerIPCHandler(IPC.CloudGroup.GET_ONE, async (event, groupId) => {
   const result = cloudGroupManager.getGroup(groupId)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-control-group', async (event, groupId, executions) => {
+registerIPCHandler(IPC.CloudGroup.CONTROL, async (event, groupId, executions) => {
   const result = await cloudGroupManager.controlGroup(groupId, executions)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-toggle-group-power', async (event, groupId, power) => {
+registerIPCHandler(IPC.CloudGroup.TOGGLE_POWER, async (event, groupId, power) => {
   const result = await cloudGroupManager.toggleGroupPower(groupId, power)
   return { success: true, data: result }
 })
 
 // 情景相关
-registerIPCHandler('cloud-sync-scenes', async () => {
+registerIPCHandler(IPC.CloudScene.SYNC, async () => {
   const result = await cloudSceneManager.syncScenes()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-scenes', async () => {
+registerIPCHandler(IPC.CloudScene.GET_ALL, async () => {
   const result = cloudSceneManager.getScenes()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-scene', async (event, sceneId) => {
+registerIPCHandler(IPC.CloudScene.GET_ONE, async (event, sceneId) => {
   const result = cloudSceneManager.getScene(sceneId)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-execute-scene', async (event, sceneId) => {
+registerIPCHandler(IPC.CloudScene.EXECUTE, async (event, sceneId) => {
   const result = await cloudSceneManager.executeScene(sceneId)
   return { success: true, data: result }
 })
 
 // 自动化相关
-registerIPCHandler('cloud-sync-automations', async () => {
+registerIPCHandler(IPC.CloudAutomation.SYNC, async () => {
   const result = await cloudAutomationManager.syncAutomations()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-automations', async () => {
+registerIPCHandler(IPC.CloudAutomation.GET_ALL, async () => {
   const result = cloudAutomationManager.getAutomations()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-automation', async (event, automationId) => {
+registerIPCHandler(IPC.CloudAutomation.GET_ONE, async (event, automationId) => {
   const result = cloudAutomationManager.getAutomation(automationId)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-enable-automation', async (event, automationId) => {
+registerIPCHandler(IPC.CloudAutomation.ENABLE, async (event, automationId) => {
   const result = await cloudAutomationManager.enableAutomation(automationId)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-disable-automation', async (event, automationId) => {
+registerIPCHandler(IPC.CloudAutomation.DISABLE, async (event, automationId) => {
   const result = await cloudAutomationManager.disableAutomation(automationId)
   return { success: true, data: result }
 })
 
 // 同步相关
-registerIPCHandler('cloud-sync-now', async (event, syncTypes) => {
+registerIPCHandler(IPC.Sync.SYNC_NOW, async (event, syncTypes) => {
   const result = await syncManager.syncNow(syncTypes)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-sync-status', async () => {
+registerIPCHandler(IPC.Sync.GET_STATUS, async () => {
   const result = syncManager.getSyncStatus()
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-set-sync-config', async (event, config) => {
+registerIPCHandler(IPC.Sync.SET_CONFIG, async (event, config) => {
   const result = syncManager.setSyncConfig(config)
   return { success: true, data: result }
 })
 
-registerIPCHandler('cloud-get-sync-config', async () => {
+registerIPCHandler(IPC.Sync.GET_CONFIG, async () => {
   const result = syncManager.getSyncConfig()
   return { success: true, data: result }
 })
